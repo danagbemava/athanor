@@ -5,13 +5,39 @@ import "testing"
 func TestDeterministicSequenceWithSameSeed(t *testing.T) {
 	a := New(1)
 	b := New(1)
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		if a.NextUint32() != b.NextUint32() {
 			t.Fatalf("sequence diverged at index %d", i)
 		}
 	}
 }
 
-func TestReferenceVectorsPlaceholder(t *testing.T) {
-	t.Skip("TODO(NEX-205): add PCG reference vectors from official source")
+func TestReferenceVectorsFromPCGOfficialDemo(t *testing.T) {
+	// Reference vector from PCG minimal C demo for initstate=42, initseq=54.
+	r := NewWithSequence(42, 54)
+	want := []uint32{
+		0xa15c02b7,
+		0x7b47f409,
+		0xba1d3330,
+		0x83d2f293,
+		0xbfa4784b,
+		0xcbed606e,
+	}
+
+	for i, expected := range want {
+		got := r.NextUint32()
+		if got != expected {
+			t.Fatalf("reference vector mismatch at index %d: got=0x%08x want=0x%08x", i, got, expected)
+		}
+	}
+}
+
+func TestNextFloat64Range(t *testing.T) {
+	r := New(123)
+	for range 10000 {
+		v := r.NextFloat64()
+		if v < 0.0 || v >= 1.0 {
+			t.Fatalf("value out of range [0,1): %f", v)
+		}
+	}
 }

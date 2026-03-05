@@ -1,18 +1,39 @@
 package rng
 
-// PCG32 is a scaffold placeholder for the deterministic RNG contract.
+const (
+	multiplier      uint64 = 6364136223846793005
+	defaultSequence uint64 = 54
+)
+
+// PCG32 is a deterministic 32-bit Permuted Congruential Generator.
 type PCG32 struct {
 	state uint64
 	inc   uint64
 }
 
+// New builds a generator from a seed using the default stream sequence.
 func New(seed uint64) *PCG32 {
-	return &PCG32{state: seed, inc: 1442695040888963407}
+	return NewWithSequence(seed, defaultSequence)
+}
+
+// NewWithSequence matches the reference seeding behavior from the minimal C implementation.
+func NewWithSequence(initstate uint64, initseq uint64) *PCG32 {
+	p := &PCG32{}
+	p.seed(initstate, initseq)
+	return p
+}
+
+func (p *PCG32) seed(initstate uint64, initseq uint64) {
+	p.state = 0
+	p.inc = (initseq << 1) | 1
+	p.NextUint32()
+	p.state += initstate
+	p.NextUint32()
 }
 
 func (p *PCG32) NextUint32() uint32 {
 	old := p.state
-	p.state = old*6364136223846793005 + (p.inc | 1)
+	p.state = old*multiplier + p.inc
 	xorshifted := uint32(((old >> 18) ^ old) >> 27)
 	rot := uint32(old >> 59)
 	return (xorshifted >> rot) | (xorshifted << ((-rot) & 31))
