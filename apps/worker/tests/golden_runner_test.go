@@ -2,6 +2,7 @@ package tests
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -37,35 +38,16 @@ func TestGoldenFixturesRunDeterministically(t *testing.T) {
 			continue
 		}
 		dir := filepath.Join(root, entry.Name())
-		manifestPath := filepath.Join(dir, "manifest.json")
-		manifestData, err := os.ReadFile(manifestPath)
+		manifest, bundle, err := loadGoldenFixture(dir)
 		if err != nil {
-			t.Fatalf("missing manifest for %s: %v", entry.Name(), err)
-		}
-		var manifest GoldenManifest
-		if err := json.Unmarshal(manifestData, &manifest); err != nil {
-			t.Fatalf("invalid manifest %s: %v", manifestPath, err)
-		}
-
-		scenarioPath := filepath.Join(dir, manifest.ScenarioSource)
-		scenarioData, err := os.ReadFile(scenarioPath)
-		if err != nil {
-			t.Fatalf("missing scenario source %s: %v", scenarioPath, err)
-		}
-		var bundle engine.Bundle
-		if err := json.Unmarshal(scenarioData, &bundle); err != nil {
-			t.Fatalf("invalid scenario source %s: %v", scenarioPath, err)
-		}
-
-		if bundle.BundleHash != manifest.ExpectedBundleHash {
-			t.Fatalf("bundle hash mismatch for %s: expected %s got %s", entry.Name(), manifest.ExpectedBundleHash, bundle.BundleHash)
+			t.Fatalf("fixture %s invalid: %v", entry.Name(), err)
 		}
 
 		for _, run := range manifest.Runs {
 			policy := policyFromRun(run)
 			result := engine.Run(bundle, run.Seed, policy)
-			if result.Outcome != run.ExpectedOutcome || result.StepsTaken != run.ExpectedSteps {
-				t.Fatalf("fixture %s failed seed=%d: expected outcome=%s steps=%d got outcome=%s steps=%d", entry.Name(), run.Seed, run.ExpectedOutcome, run.ExpectedSteps, result.Outcome, result.StepsTaken)
+			if err := validateRunResult(run, result); err != nil {
+				t.Fatalf("fixture %s failed seed=%d: %v", entry.Name(), run.Seed, err)
 			}
 
 			repeat := engine.Run(bundle, run.Seed, policyFromRun(run))
@@ -79,6 +61,70 @@ func TestGoldenFixturesRunDeterministically(t *testing.T) {
 	if count < 5 {
 		t.Fatalf("expected at least 5 golden fixtures, got %d", count)
 	}
+}
+
+func TestGoldenHarnessDetectsExpectationRegression(t *testing.T) {
+	dir := filepath.Join("..", "..", "..", "packages", "spec", "golden", "linear-chain")
+	manifest, bundle, err := loadGoldenFixture(dir)
+	if err != nil {
+		t.Fatalf("failed to load fixture: %v", err)
+	}
+	if len(manifest.Runs) == 0 {
+		t.Fatal("fixture has no runs")
+	}
+
+	run := manifest.Runs[0]
+	result := engine.Run(bundle, run.Seed, policyFromRun(run))
+
+	tampered := run
+	tampered.ExpectedOutcome = "__intentional_regression__"
+
+	if err := validateRunResult(tampered, result); err == nil {
+		t.Fatal("expected mismatch detection for tampered expected outcome")
+	}
+}
+
+func loadGoldenFixture(dir string) (GoldenManifest, engine.Bundle, error) {
+	manifestPath := filepath.Join(dir, "manifest.json")
+	manifestData, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return GoldenManifest{}, engine.Bundle{}, fmt.Errorf("missing manifest: %w", err)
+	}
+
+	var manifest GoldenManifest
+	if err := json.Unmarshal(manifestData, &manifest); err != nil {
+		return GoldenManifest{}, engine.Bundle{}, fmt.Errorf("invalid manifest: %w", err)
+	}
+
+	scenarioPath := filepath.Join(dir, manifest.ScenarioSource)
+	scenarioData, err := os.ReadFile(scenarioPath)
+	if err != nil {
+		return GoldenManifest{}, engine.Bundle{}, fmt.Errorf("missing scenario source: %w", err)
+	}
+
+	var bundle engine.Bundle
+	if err := json.Unmarshal(scenarioData, &bundle); err != nil {
+		return GoldenManifest{}, engine.Bundle{}, fmt.Errorf("invalid scenario source: %w", err)
+	}
+
+	if bundle.BundleHash != manifest.ExpectedBundleHash {
+		return GoldenManifest{}, engine.Bundle{}, fmt.Errorf("bundle hash mismatch: expected %s got %s", manifest.ExpectedBundleHash, bundle.BundleHash)
+	}
+
+	return manifest, bundle, nil
+}
+
+func validateRunResult(run GoldenRun, result engine.RunResult) error {
+	if result.Outcome != run.ExpectedOutcome || result.StepsTaken != run.ExpectedSteps {
+		return fmt.Errorf(
+			"expected outcome=%s steps=%d got outcome=%s steps=%d",
+			run.ExpectedOutcome,
+			run.ExpectedSteps,
+			result.Outcome,
+			result.StepsTaken,
+		)
+	}
+	return nil
 }
 
 func policyFromRun(run GoldenRun) agent.Policy {
