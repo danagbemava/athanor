@@ -1,0 +1,14 @@
+# Java / Gradle
+apps/api/.gradle/
+apps/api/build/
+
+# Node / Nuxt
+apps/ui/node_modules/
+apps/ui/.nuxt/
+apps/ui/.output/
+
+# Spec package deps
+packages/spec/node_modules/
+
+# OS
+.DS_Store

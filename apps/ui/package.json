@@ -4,9 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "echo 'Nuxt app scaffold only'",
-    "build": "echo 'UI build placeholder'",
-    "test": "echo 'UI test placeholder'",
-    "lint": "echo 'UI lint placeholder'"
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "test": "node --test test/smoke.test.mjs",
+    "lint": "nuxi typecheck"
+  },
+  "devDependencies": {
+    "nuxt": "^3.17.0",
+    "typescript": "^5.9.3",
+    "vue-tsc": "^2.1.6"
   }
 }

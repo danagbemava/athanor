@@ -1,8 +1,8 @@
-# Athanor API (Scaffold)
+# Athanor API
 
 ## Purpose
 
-Spring Boot + Spring Modulith placeholder for scenario authoring, compilation orchestration, and telemetry APIs.
+Spring Boot API service for scenario authoring, compilation orchestration, and telemetry APIs.
 
 ## Setup
 
@@ -11,8 +11,15 @@ Spring Boot + Spring Modulith placeholder for scenario authoring, compilation or
 
 ## Run
 
-- Placeholder only. Future command: `./gradlew bootRun`.
+- `cd apps/api && ./gradlew bootRun`
+
+## Quality Gates
+
+- Lint gate: `make api-lint` (Gradle `compileJava`)
+- Test gate: `make api-test` (Gradle `test`)
+- Build gate: `make api-build` (Gradle `build -x test`)
 
 ## Notes
 
-- Health endpoint and module boundaries are TODOs for Phase 1.
+- Generated with Spring Initializr using Gradle wrapper.
+- Modulith boundaries and domain modules are planned in later phases.

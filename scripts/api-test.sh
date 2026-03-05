@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "API test placeholder: no test runner configured in scaffold mode."
+cd "$(dirname "$0")/../apps/api"
+./gradlew --no-daemon test
+
+echo "API test gate passed."

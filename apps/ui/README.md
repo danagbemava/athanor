@@ -2,17 +2,24 @@
 
 ## Purpose
 
-Nuxt 3 placeholder for Scenario Studio graph editor and analytics views.
+Nuxt 3 scaffold for Scenario Studio graph authoring and analytics.
 
 ## Setup
 
 - Node.js 22+
-- From repo root: `make ui-build`
+- Install deps: `npm --prefix apps/ui install`
 
 ## Run
 
-- Placeholder only. Future command: `npm run dev`.
+- `npm --prefix apps/ui run dev`
+
+## Quality Gates
+
+- Lint: `make ui-lint`
+- Test: `make ui-test`
+- Build: `make ui-build`
 
 ## Notes
 
+- Type checking is enforced via `nuxi typecheck`.
 - Canvas editor and simulation panel are deferred to Phase 1/2 issues.
