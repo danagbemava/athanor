@@ -4,14 +4,14 @@ Athanor is a general-purpose decision simulation platform for deterministic exec
 
 ## Phase 0 Status
 
-This repository is scaffolded for Phase 0 (Deterministic Runtime Skeleton). It provides structure, contracts, and placeholders. Full runtime functionality is intentionally deferred.
+This repository is in Phase 0 (Deterministic Runtime Skeleton). Core scaffolding is in place, with deterministic worker/runtime contracts, Spring Modulith API bootstrap, schema contracts, and golden determinism harness coverage.
 
 ## Architecture Map
 
-- `apps/api`: Spring Boot + Spring Modulith API placeholder
-- `apps/ui`: Nuxt 3 Scenario Studio placeholder
-- `apps/worker`: Go simulation worker skeleton
-- `packages/spec`: Canonical JSON schemas and golden fixtures
+- `apps/api`: Spring Boot + Spring Modulith API bootstrap (`scenario`, `compiler`, `jobs`, `telemetry` modules)
+- `apps/ui`: Nuxt 3 Scenario Studio scaffold with lint/test/build gates
+- `apps/worker`: Go deterministic simulation worker (PCG32 RNG + traversal/effects loop)
+- `packages/spec`: Canonical JSON schemas, fixture validation, and golden determinism corpus
 - `infra`: Local stack via Docker Compose
 - `docs/adr`: Architecture Decision Records
 
@@ -26,12 +26,24 @@ This repository is scaffolded for Phase 0 (Deterministic Runtime Skeleton). It p
 ## Bootstrap Commands
 
 - `make setup`
+- `make lint`
+- `make test`
+- `make build`
 - `make ci`
 - `docker compose -f infra/docker-compose.yml config`
 - `docker compose -f infra/docker-compose.yml up -d`
 
+## What Works Now
+
+- API compiles/tests/builds through Gradle wrapper gates.
+- Spring Modulith module structure is verified by test (`ApplicationModules.verify()`).
+- Worker runs deterministic simulations with seeded PCG32 and supports decision/chance/terminal traversal with state effects.
+- Golden test harness executes fixture scenarios and checks deterministic outcome/step expectations.
+- Schema validation checks metadata plus valid/invalid fixture contracts.
+
 ## Current Limitations
 
-- API and UI are scaffold placeholders and do not expose production endpoints/features.
-- Worker runtime logic is intentionally skeletal and does not implement full deterministic semantics.
-- Golden tests validate fixture loading and contract shape only; full determinism assertions are deferred.
+- API modules are scaffolded and do not yet implement production domain endpoints/workflows.
+- UI remains a scaffold shell (no graph editor/runtime analytics yet).
+- Docker Compose `api` and `worker` services are still placeholder runtime commands, not full app launches.
+- End-to-end compiler-to-worker integration is still pending (Phase 1+ work).
