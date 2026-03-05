@@ -1,6 +1,9 @@
 package rng
 
-import "testing"
+import (
+	"sync"
+	"testing"
+)
 
 func TestDeterministicSequenceWithSameSeed(t *testing.T) {
 	a := New(1)
@@ -38,6 +41,52 @@ func TestNextFloat64Range(t *testing.T) {
 		v := r.NextFloat64()
 		if v < 0.0 || v >= 1.0 {
 			t.Fatalf("value out of range [0,1): %f", v)
+		}
+	}
+}
+
+func TestOneMillionCallsAreStableForSameSeed(t *testing.T) {
+	const iterations = 1_000_000
+
+	a := New(1)
+	b := New(1)
+
+	for i := range iterations {
+		if a.NextUint32() != b.NextUint32() {
+			t.Fatalf("sequence diverged at iteration %d", i)
+		}
+	}
+}
+
+func TestConcurrentGeneratorsWithSameSeedProduceIdenticalSequences(t *testing.T) {
+	const iterations = 100_000
+	const seed = uint64(9_001)
+
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	results := make([][]uint32, 2)
+
+	for idx := range 2 {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			<-start
+
+			r := New(seed)
+			seq := make([]uint32, iterations)
+			for j := range iterations {
+				seq[j] = r.NextUint32()
+			}
+			results[i] = seq
+		}(idx)
+	}
+
+	close(start)
+	wg.Wait()
+
+	for i := range iterations {
+		if results[0][i] != results[1][i] {
+			t.Fatalf("concurrent sequence mismatch at index %d: %d vs %d", i, results[0][i], results[1][i])
 		}
 	}
 }
