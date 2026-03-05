@@ -51,7 +51,7 @@ func TestOneMillionCallsAreStableForSameSeed(t *testing.T) {
 	a := New(1)
 	b := New(1)
 
-	for i := 0; i < iterations; i++ {
+	for i := range iterations {
 		if a.NextUint32() != b.NextUint32() {
 			t.Fatalf("sequence diverged at iteration %d", i)
 		}
@@ -84,7 +84,7 @@ func TestConcurrentGeneratorsWithSameSeedProduceIdenticalSequences(t *testing.T)
 	close(start)
 	wg.Wait()
 
-	for i := 0; i < iterations; i++ {
+	for i := range iterations {
 		if results[0][i] != results[1][i] {
 			t.Fatalf("concurrent sequence mismatch at index %d: %d vs %d", i, results[0][i], results[1][i])
 		}
