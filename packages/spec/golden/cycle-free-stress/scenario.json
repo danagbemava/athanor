@@ -1,7 +1,22 @@
 {
-  "id": "scaffold-scenario",
-  "name": "Scaffold Scenario",
-  "version": 1,
-  "nodes": [],
-  "edges": []
+  "bundle_hash": "hash-cycle-free-stress",
+  "entry_node_id": "root",
+  "nodes": [
+    {
+      "id": "root",
+      "type": "decision",
+      "decision_options": [
+        { "to": "a" },
+        { "to": "b" },
+        { "to": "c" }
+      ]
+    },
+    { "id": "a", "type": "decision", "decision_options": [{ "to": "a_terminal" }] },
+    { "id": "b", "type": "decision", "decision_options": [{ "to": "b_terminal" }] },
+    { "id": "c", "type": "decision", "decision_options": [{ "to": "c_terminal" }] },
+    { "id": "a_terminal", "type": "terminal", "outcome": "a_done" },
+    { "id": "b_terminal", "type": "terminal", "outcome": "b_done" },
+    { "id": "c_terminal", "type": "terminal", "outcome": "c_done" }
+  ],
+  "initial_state": {}
 }

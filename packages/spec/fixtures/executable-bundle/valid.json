@@ -1,3 +1,18 @@
 {
-  "version": "0.1.0-scaffold"
+  "bundle_hash": "abc123",
+  "entry_node_id": "start",
+  "header": {
+    "bundle_spec_version": "0.1.0",
+    "compiler_version": "0.1.0",
+    "runtime_version": "0.1.0",
+    "rng_algorithm": "pcg32",
+    "rng_version": "v1",
+    "float_mode": "ieee754",
+    "expression_language_version": "v1",
+    "iteration_order_guarantee": "stable"
+  },
+  "nodes": [
+    { "id": "start", "type": "decision", "decision_options": [{ "to": "end" }] },
+    { "id": "end", "type": "terminal", "outcome": "success" }
+  ]
 }

@@ -1,7 +1,20 @@
 {
-  "id": "scaffold-scenario",
-  "name": "Scaffold Scenario",
-  "version": 1,
-  "nodes": [],
-  "edges": []
+  "bundle_hash": "hash-state-conditional-branch",
+  "entry_node_id": "start",
+  "nodes": [
+    {
+      "id": "start",
+      "type": "decision",
+      "effects": [
+        { "op": "increment", "path": "score", "value": 1 }
+      ],
+      "decision_options": [
+        { "to": "pass", "guard": { "var": "score", "equals": 1 } },
+        { "to": "fail", "guard": { "var": "score", "equals": 0 } }
+      ]
+    },
+    { "id": "pass", "type": "terminal", "outcome": "pass" },
+    { "id": "fail", "type": "terminal", "outcome": "fail" }
+  ],
+  "initial_state": { "score": 0 }
 }

@@ -1,3 +1,11 @@
 {
-  "version": "0.1.0-scaffold"
+  "job_id": "job-1",
+  "status": "queued",
+  "target_distribution": {
+    "success": 0.6,
+    "failure": 0.4
+  },
+  "search_space": {
+    "weights": [0.1, 0.2]
+  }
 }

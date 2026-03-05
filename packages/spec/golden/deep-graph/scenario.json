@@ -1,7 +1,15 @@
 {
-  "id": "scaffold-scenario",
-  "name": "Scaffold Scenario",
-  "version": 1,
-  "nodes": [],
-  "edges": []
+  "bundle_hash": "hash-deep-graph",
+  "entry_node_id": "n1",
+  "nodes": [
+    { "id": "n1", "type": "decision", "decision_options": [{ "to": "n2" }] },
+    { "id": "n2", "type": "decision", "decision_options": [{ "to": "n3" }] },
+    { "id": "n3", "type": "chance", "chance_options": [{ "to": "n4", "weight": 1.0 }] },
+    { "id": "n4", "type": "decision", "decision_options": [{ "to": "n5" }] },
+    { "id": "n5", "type": "decision", "decision_options": [{ "to": "n6" }] },
+    { "id": "n6", "type": "chance", "chance_options": [{ "to": "n7", "weight": 1.0 }] },
+    { "id": "n7", "type": "decision", "decision_options": [{ "to": "terminal" }] },
+    { "id": "terminal", "type": "terminal", "outcome": "deep_success" }
+  ],
+  "initial_state": {}
 }

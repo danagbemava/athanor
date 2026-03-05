@@ -1,3 +1,6 @@
 {
-  "version": "0.1.0-scaffold"
+  "op": "INSERT_NODE",
+  "args": {
+    "node": { "id": "n9", "type": "DecisionNode" }
+  }
 }

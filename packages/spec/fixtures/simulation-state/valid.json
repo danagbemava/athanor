@@ -1,3 +1,10 @@
 {
-  "version": "0.1.0-scaffold"
+  "variables": {
+    "score": 0,
+    "status": "new"
+  },
+  "effects": [
+    { "op": "increment", "path": "score", "value": 1 },
+    { "op": "set", "path": "status", "value": "active" }
+  ]
 }

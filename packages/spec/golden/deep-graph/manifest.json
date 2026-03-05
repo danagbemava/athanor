@@ -3,10 +3,11 @@
   "expected_bundle_hash": "hash-deep-graph",
   "runs": [
     {
-      "seed": 1,
+      "seed": 17,
       "agent_policy": "scripted",
-      "expected_outcome": "scaffold_terminal",
-      "expected_steps": 0
+      "scripted_choices": [0, 0, 0, 0, 0],
+      "expected_outcome": "deep_success",
+      "expected_steps": 7
     }
   ]
 }

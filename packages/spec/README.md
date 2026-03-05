@@ -11,3 +11,8 @@ Canonical shared data contracts for API, worker, and UI.
 ## Notes
 
 Schemas are scaffold-level and intentionally minimal. They define contract boundaries, not final domain behavior.
+
+## Validation
+
+- Metadata check: `make schema-validate`
+- Fixture contract check: `npm --prefix packages/spec install && npm --prefix packages/spec run validate`

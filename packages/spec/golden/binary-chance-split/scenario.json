@@ -1,7 +1,17 @@
 {
-  "id": "scaffold-scenario",
-  "name": "Scaffold Scenario",
-  "version": 1,
-  "nodes": [],
-  "edges": []
+  "bundle_hash": "hash-binary-chance-split",
+  "entry_node_id": "chance",
+  "nodes": [
+    {
+      "id": "chance",
+      "type": "chance",
+      "chance_options": [
+        { "to": "success", "weight": 1.0 },
+        { "to": "failure", "weight": 0.0 }
+      ]
+    },
+    { "id": "success", "type": "terminal", "outcome": "success" },
+    { "id": "failure", "type": "terminal", "outcome": "failure" }
+  ],
+  "initial_state": {}
 }

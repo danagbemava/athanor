@@ -1,3 +1,13 @@
 {
-  "version": "0.1.0-scaffold"
+  "id": "scenario-1",
+  "name": "Sample Scenario",
+  "version": 1,
+  "nodes": [
+    { "id": "n1", "type": "DecisionNode" },
+    { "id": "n2", "type": "TerminalNode" }
+  ],
+  "edges": [
+    { "from": "n1", "to": "n2" }
+  ],
+  "stateSchema": {}
 }

@@ -1,3 +1,8 @@
 {
-  "invalid": true
+  "variables": {
+    "score": 0
+  },
+  "effects": [
+    { "op": "unknown", "path": "score", "value": 1 }
+  ]
 }

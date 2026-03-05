@@ -1,3 +1,7 @@
 {
-  "invalid": true
+  "bundle_hash": "abc123",
+  "seed": -1,
+  "agent_version": "",
+  "outcome": "",
+  "steps_taken": -2
 }

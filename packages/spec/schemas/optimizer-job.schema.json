@@ -5,11 +5,11 @@
   "type": "object",
   "required": ["job_id", "status", "target_distribution"],
   "properties": {
-    "job_id": { "type": "string" },
+    "job_id": { "type": "string", "minLength": 1 },
     "status": { "type": "string", "enum": ["queued", "running", "completed", "failed"] },
     "target_distribution": { "type": "object" },
     "search_space": { "type": "object" },
     "metadata": { "type": "object" }
   },
-  "additionalProperties": true
+  "additionalProperties": false
 }

@@ -5,8 +5,9 @@
     {
       "seed": 1,
       "agent_policy": "scripted",
-      "expected_outcome": "scaffold_terminal",
-      "expected_steps": 0
+      "scripted_choices": [0, 0, 0, 0, 0],
+      "expected_outcome": "success",
+      "expected_steps": 5
     }
   ]
 }

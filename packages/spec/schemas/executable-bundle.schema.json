@@ -5,8 +5,8 @@
   "type": "object",
   "required": ["bundle_hash", "header", "entry_node_id", "nodes"],
   "properties": {
-    "bundle_hash": { "type": "string" },
-    "entry_node_id": { "type": "string" },
+    "bundle_hash": { "type": "string", "minLength": 1 },
+    "entry_node_id": { "type": "string", "minLength": 1 },
     "header": {
       "type": "object",
       "required": ["bundle_spec_version", "compiler_version", "runtime_version", "rng_algorithm", "rng_version", "float_mode", "expression_language_version", "iteration_order_guarantee"],
@@ -19,9 +19,26 @@
         "float_mode": { "type": "string" },
         "expression_language_version": { "type": "string" },
         "iteration_order_guarantee": { "type": "string" }
-      }
+      },
+      "additionalProperties": false
     },
-    "nodes": { "type": "array" }
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "type"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["decision", "chance", "terminal"] },
+          "decision_options": { "type": "array" },
+          "chance_options": { "type": "array" },
+          "effects": { "type": "array" },
+          "outcome": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    }
   },
   "additionalProperties": true
 }

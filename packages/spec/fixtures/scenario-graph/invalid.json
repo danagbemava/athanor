@@ -1,3 +1,6 @@
 {
-  "invalid": true
+  "id": "scenario-1",
+  "name": "Invalid Scenario",
+  "version": 1,
+  "nodes": []
 }
