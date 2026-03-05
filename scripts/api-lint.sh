@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "API lint placeholder: no lint rules configured yet."
+cd "$(dirname "$0")/../apps/api"
+./gradlew --no-daemon compileJava
+
+echo "API lint gate passed (compileJava)."

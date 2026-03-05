@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "API build placeholder: Gradle wrapper not initialized in scaffold mode."
+cd "$(dirname "$0")/../apps/api"
+./gradlew --no-daemon build -x test
+
+echo "API build gate passed."

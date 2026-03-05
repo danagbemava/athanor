@@ -1,4 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "UI lint placeholder: no lint config in scaffold mode."
+root="$(dirname "$0")/../apps/ui"
+
+if [ ! -d "$root/node_modules" ]; then
+  echo "UI dependencies missing. Run: npm --prefix apps/ui install"
+  exit 1
+fi
+
+npm --prefix "$root" run lint
