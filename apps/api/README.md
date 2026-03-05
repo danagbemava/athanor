@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Spring Boot API service for scenario authoring, compilation orchestration, and telemetry APIs.
+Spring Boot + Spring Modulith API service for scenario authoring, compilation orchestration, jobs, and telemetry APIs.
 
 ## Setup
 
@@ -22,4 +22,9 @@ Spring Boot API service for scenario authoring, compilation orchestration, and t
 ## Notes
 
 - Generated with Spring Initializr using Gradle wrapper.
-- Modulith boundaries and domain modules are planned in later phases.
+- Initial Modulith modules are scaffolded under:
+  - `com.athanor.api.scenario`
+  - `com.athanor.api.compiler`
+  - `com.athanor.api.jobs`
+  - `com.athanor.api.telemetry`
+- Structural enforcement runs via `AthanorApiModularityTests`.
