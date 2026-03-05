@@ -18,6 +18,14 @@ jobs:
         run: make api-lint
       - name: API test
         run: make api-test
+      - name: Upload API coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-jacoco-report
+          path: |
+            apps/api/build/reports/jacoco/test/html
+            apps/api/build/reports/jacoco/test/jacocoTestReport.xml
+          if-no-files-found: error
       - name: API build
         run: make api-build
 

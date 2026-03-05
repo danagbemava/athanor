@@ -1,0 +1,19 @@
+name: "Athanor CodeQL Config"
+
+queries:
+  - uses: security-and-quality
+
+paths:
+  - apps/api
+  - apps/ui
+  - apps/worker
+  - packages/spec
+  - scripts
+
+paths-ignore:
+  - "**/node_modules/**"
+  - "**/build/**"
+  - "**/dist/**"
+  - "**/.nuxt/**"
+  - "**/.gradle/**"
+  - "**/coverage/**"
