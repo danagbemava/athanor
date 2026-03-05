@@ -5,12 +5,12 @@
   "type": "object",
   "required": ["bundle_hash", "seed", "agent_version", "outcome", "steps_taken"],
   "properties": {
-    "bundle_hash": { "type": "string" },
+    "bundle_hash": { "type": "string", "minLength": 1 },
     "seed": { "type": "integer", "minimum": 0 },
-    "agent_version": { "type": "string" },
-    "outcome": { "type": "string" },
+    "agent_version": { "type": "string", "minLength": 1 },
+    "outcome": { "type": "string", "minLength": 1 },
     "steps_taken": { "type": "integer", "minimum": 0 },
     "metrics": { "type": "object" }
   },
-  "additionalProperties": true
+  "additionalProperties": false
 }

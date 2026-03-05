@@ -3,7 +3,7 @@
   "title": "SimulationState",
   "version": "0.1.0-scaffold",
   "type": "object",
-  "required": ["variables"],
+  "required": ["variables", "effects"],
   "properties": {
     "variables": { "type": "object" },
     "effects": {
@@ -13,9 +13,10 @@
         "required": ["op", "path"],
         "properties": {
           "op": { "type": "string", "enum": ["set", "increment", "decrement", "add_to_set", "remove_from_set"] },
-          "path": { "type": "string" },
+          "path": { "type": "string", "minLength": 1 },
           "value": {}
-        }
+        },
+        "additionalProperties": false
       }
     }
   },

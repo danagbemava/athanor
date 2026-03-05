@@ -5,11 +5,33 @@
   "type": "object",
   "required": ["id", "name", "version", "nodes", "edges"],
   "properties": {
-    "id": { "type": "string" },
-    "name": { "type": "string" },
+    "id": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
     "version": { "type": "integer", "minimum": 1 },
-    "nodes": { "type": "array" },
-    "edges": { "type": "array" },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["DecisionNode", "ChanceNode", "TerminalNode"] }
+        },
+        "additionalProperties": true
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "to"],
+        "properties": {
+          "from": { "type": "string" },
+          "to": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
     "objectives": { "type": "object" },
     "constraints": { "type": "object" },
     "stateSchema": { "type": "object" }

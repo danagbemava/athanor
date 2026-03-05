@@ -3,7 +3,7 @@
   "title": "PatchDSL",
   "version": "0.1.0-scaffold",
   "type": "object",
-  "required": ["op"],
+  "required": ["op", "args"],
   "properties": {
     "op": {
       "type": "string",
@@ -19,5 +19,5 @@
     },
     "args": { "type": "object" }
   },
-  "additionalProperties": true
+  "additionalProperties": false
 }

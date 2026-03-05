@@ -3,10 +3,11 @@
   "expected_bundle_hash": "hash-state-conditional-branch",
   "runs": [
     {
-      "seed": 1,
+      "seed": 13,
       "agent_policy": "scripted",
-      "expected_outcome": "scaffold_terminal",
-      "expected_steps": 0
+      "scripted_choices": [0],
+      "expected_outcome": "pass",
+      "expected_steps": 1
     }
   ]
 }

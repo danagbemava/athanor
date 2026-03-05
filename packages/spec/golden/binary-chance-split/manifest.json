@@ -4,9 +4,15 @@
   "runs": [
     {
       "seed": 1,
-      "agent_policy": "scripted",
-      "expected_outcome": "scaffold_terminal",
-      "expected_steps": 0
+      "agent_policy": "random",
+      "expected_outcome": "success",
+      "expected_steps": 1
+    },
+    {
+      "seed": 999,
+      "agent_policy": "random",
+      "expected_outcome": "success",
+      "expected_steps": 1
     }
   ]
 }

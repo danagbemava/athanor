@@ -1,3 +1,10 @@
 {
-  "version": "0.1.0-scaffold"
+  "bundle_hash": "abc123",
+  "seed": 42,
+  "agent_version": "scripted-v1",
+  "outcome": "success",
+  "steps_taken": 5,
+  "metrics": {
+    "duration_ms": 2.1
+  }
 }

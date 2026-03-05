@@ -16,4 +16,15 @@ for f in "$schema_dir"/*.schema.json; do
 
 done
 
-echo "Schema validation passed."
+echo "Schema metadata validation passed."
+
+if command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
+  spec_dir="$(dirname "$0")/../packages/spec"
+  if [ -d "$spec_dir/node_modules" ]; then
+    npm --prefix "$spec_dir" run validate
+  else
+    echo "Skipping fixture validation because packages/spec/node_modules is missing."
+  fi
+else
+  echo "Skipping fixture validation because node/npm are not installed."
+fi
