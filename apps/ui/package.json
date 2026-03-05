@@ -1,0 +1,12 @@
+{
+  "name": "athanor-ui",
+  "version": "0.1.0-scaffold",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "echo 'Nuxt app scaffold only'",
+    "build": "echo 'UI build placeholder'",
+    "test": "echo 'UI test placeholder'",
+    "lint": "echo 'UI lint placeholder'"
+  }
+}

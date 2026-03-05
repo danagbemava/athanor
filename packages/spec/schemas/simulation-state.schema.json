@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SimulationState",
+  "version": "0.1.0-scaffold",
+  "type": "object",
+  "required": ["variables"],
+  "properties": {
+    "variables": { "type": "object" },
+    "effects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["op", "path"],
+        "properties": {
+          "op": { "type": "string", "enum": ["set", "increment", "decrement", "add_to_set", "remove_from_set"] },
+          "path": { "type": "string" },
+          "value": {}
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}

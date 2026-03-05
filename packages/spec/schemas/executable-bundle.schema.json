@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ExecutableBundle",
+  "version": "0.1.0-scaffold",
+  "type": "object",
+  "required": ["bundle_hash", "header", "entry_node_id", "nodes"],
+  "properties": {
+    "bundle_hash": { "type": "string" },
+    "entry_node_id": { "type": "string" },
+    "header": {
+      "type": "object",
+      "required": ["bundle_spec_version", "compiler_version", "runtime_version", "rng_algorithm", "rng_version", "float_mode", "expression_language_version", "iteration_order_guarantee"],
+      "properties": {
+        "bundle_spec_version": { "type": "string" },
+        "compiler_version": { "type": "string" },
+        "runtime_version": { "type": "string" },
+        "rng_algorithm": { "type": "string" },
+        "rng_version": { "type": "string" },
+        "float_mode": { "type": "string" },
+        "expression_language_version": { "type": "string" },
+        "iteration_order_guarantee": { "type": "string" }
+      }
+    },
+    "nodes": { "type": "array" }
+  },
+  "additionalProperties": true
+}

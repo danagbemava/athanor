@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OptimizerJob",
+  "version": "0.1.0-scaffold",
+  "type": "object",
+  "required": ["job_id", "status", "target_distribution"],
+  "properties": {
+    "job_id": { "type": "string" },
+    "status": { "type": "string", "enum": ["queued", "running", "completed", "failed"] },
+    "target_distribution": { "type": "object" },
+    "search_space": { "type": "object" },
+    "metadata": { "type": "object" }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ScenarioGraph",
+  "version": "0.1.0-scaffold",
+  "type": "object",
+  "required": ["id", "name", "version", "nodes", "edges"],
+  "properties": {
+    "id": { "type": "string" },
+    "name": { "type": "string" },
+    "version": { "type": "integer", "minimum": 1 },
+    "nodes": { "type": "array" },
+    "edges": { "type": "array" },
+    "objectives": { "type": "object" },
+    "constraints": { "type": "object" },
+    "stateSchema": { "type": "object" }
+  },
+  "additionalProperties": true
+}

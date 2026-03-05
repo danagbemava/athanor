@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SimulationRunResult",
+  "version": "0.1.0-scaffold",
+  "type": "object",
+  "required": ["bundle_hash", "seed", "agent_version", "outcome", "steps_taken"],
+  "properties": {
+    "bundle_hash": { "type": "string" },
+    "seed": { "type": "integer", "minimum": 0 },
+    "agent_version": { "type": "string" },
+    "outcome": { "type": "string" },
+    "steps_taken": { "type": "integer", "minimum": 0 },
+    "metrics": { "type": "object" }
+  },
+  "additionalProperties": true
+}

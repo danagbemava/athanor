@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PatchDSL",
+  "version": "0.1.0-scaffold",
+  "type": "object",
+  "required": ["op"],
+  "properties": {
+    "op": {
+      "type": "string",
+      "enum": [
+        "INSERT_NODE",
+        "REMOVE_NODE",
+        "INSERT_CHANCE_NODE",
+        "ADD_DECISION",
+        "SPLIT_TERMINAL",
+        "ADD_GUARD",
+        "UPDATE_PROBABILITY"
+      ]
+    },
+    "args": { "type": "object" }
+  },
+  "additionalProperties": true
+}

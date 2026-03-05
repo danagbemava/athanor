@@ -1,0 +1,58 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: athanor-postgres
+    environment:
+      POSTGRES_USER: athanor
+      POSTGRES_PASSWORD: athanor
+      POSTGRES_DB: athanor
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    container_name: athanor-redis
+    ports:
+      - "6379:6379"
+
+  minio:
+    image: minio/minio:latest
+    container_name: athanor-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+  api:
+    image: eclipse-temurin:21-jre
+    container_name: athanor-api
+    working_dir: /workspace
+    command: ["sh", "-c", "echo 'API scaffold placeholder running'; sleep infinity"]
+    volumes:
+      - ../apps/api:/workspace
+    depends_on:
+      - postgres
+      - redis
+      - minio
+
+  worker:
+    image: golang:1.22
+    container_name: athanor-worker
+    working_dir: /workspace
+    command: ["sh", "-c", "echo 'Worker scaffold placeholder running'; sleep infinity"]
+    volumes:
+      - ../apps/worker:/workspace
+    depends_on:
+      - redis
+      - minio
+
+volumes:
+  postgres_data:
+  minio_data:
