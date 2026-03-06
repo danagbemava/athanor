@@ -98,6 +98,22 @@ public class ScenarioService {
         );
     }
 
+    public LatestScenarioVersionSnapshot latestVersionSnapshot(UUID scenarioId) {
+        ScenarioAggregate aggregate = findScenario(scenarioId);
+        ScenarioVersion latest = latestVersion(aggregate);
+
+        return new LatestScenarioVersionSnapshot(
+            aggregate.id(),
+            aggregate.name(),
+            aggregate.description(),
+            latest.id(),
+            latest.versionNumber(),
+            latest.state(),
+            latest.createdAt(),
+            deepCopy(latest.graph())
+        );
+    }
+
     private ScenarioAggregate findScenario(UUID id) {
         ScenarioAggregate aggregate = scenarios.get(id);
         if (aggregate == null) {
@@ -178,6 +194,17 @@ public class ScenarioService {
         boolean valid,
         List<ValidationMessage> errors,
         List<ValidationMessage> warnings
+    ) {}
+
+    public record LatestScenarioVersionSnapshot(
+        UUID scenarioId,
+        String name,
+        String description,
+        UUID versionId,
+        int versionNumber,
+        String state,
+        Instant versionCreatedAt,
+        Map<String, Object> graph
     ) {}
 
     private record ScenarioVersion(
