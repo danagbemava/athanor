@@ -1,6 +1,18 @@
+<script setup lang="ts">
+useHead({
+    script: [
+        {
+            key: "theme-init",
+            tagPosition: "head",
+            innerHTML:
+                "(function(){try{var k='athanor-theme-mode';var t=localStorage.getItem(k)||'system';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);var r=document.documentElement;r.classList.toggle('dark',d);r.style.colorScheme=d?'dark':'light';}catch(e){}})();",
+        },
+    ],
+});
+</script>
+
 <template>
-  <main>
-    <h1>Athanor Scenario Studio</h1>
-    <p>Scaffold interface for graph authoring and simulation analytics.</p>
-  </main>
+    <NuxtLayout>
+        <NuxtPage />
+    </NuxtLayout>
 </template>

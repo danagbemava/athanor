@@ -3,9 +3,9 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 
-const appVuePath = path.resolve(process.cwd(), 'app.vue')
+const dashboardPagePath = path.resolve(process.cwd(), 'pages/dashboard.vue')
 
-test('app shell exists with heading', async () => {
-  const contents = await readFile(appVuePath, 'utf8')
+test('dashboard shell exists with heading', async () => {
+  const contents = await readFile(dashboardPagePath, 'utf8')
   assert.match(contents, /Athanor Scenario Studio/)
 })

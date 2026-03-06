@@ -1,8 +1,14 @@
-# Athanor UI (Scaffold)
+# Athanor UI (Nuxt + shadcn)
 
 ## Purpose
 
-Nuxt 3 scaffold for Scenario Studio graph authoring and analytics.
+Nuxt 3 app for Scenario Studio graph authoring and validation workflows.
+
+## Stack
+
+- Nuxt 3
+- Tailwind CSS
+- shadcn-vue via `shadcn-nuxt`
 
 ## Setup
 
@@ -11,15 +17,22 @@ Nuxt 3 scaffold for Scenario Studio graph authoring and analytics.
 
 ## Run
 
-- `npm --prefix apps/ui run dev`
+- Dev server: `npm --prefix apps/ui run dev`
 
 ## Quality Gates
 
-- Lint: `make ui-lint`
-- Test: `make ui-test`
-- Build: `make ui-build`
+- Lint/typecheck: `make ui-lint`
+- Tests: `make ui-test`
+- Production build: `make ui-build`
+
+## Design System
+
+- Source of truth: `apps/ui/docs/design-system.md`
+- Theme tokens: `apps/ui/assets/css/tailwind.css`
+- UI primitives: `apps/ui/components/ui/*`
 
 ## Notes
 
-- Type checking is enforced via `nuxi typecheck`.
-- Canvas editor and simulation panel are deferred to Phase 1/2 issues.
+- `components.json` configures shadcn-vue generation for this app.
+- API base URL defaults to `http://localhost:8080`.
+- Override API URL with `NUXT_PUBLIC_API_BASE_URL`.
