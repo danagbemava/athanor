@@ -20,10 +20,11 @@ import {
         </CardHeader>
     </Card>
 
-    <section class="grid gap-4 xl:grid-cols-[1fr,1.4fr]">
+    <section class="space-y-4">
         <QuickActionsCard
             title="Composer Actions"
             description="Run create, version, and validate actions against the active graph model."
+            compact
         />
         <GraphComposerCard />
     </section>
