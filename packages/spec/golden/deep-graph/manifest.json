@@ -1,13 +1,13 @@
 {
   "scenario_source": "scenario.json",
-  "expected_bundle_hash": "hash-deep-graph",
+  "expected_bundle_hash": "90cd0f51e8265418d501956e615aa0281fcc1d132e24d6a0ee257c4852a819c3",
   "runs": [
     {
       "seed": 17,
       "agent_policy": "scripted",
       "scripted_choices": [0, 0, 0, 0, 0],
       "expected_outcome": "deep_success",
-      "expected_steps": 7
+      "expected_steps": 20
     }
   ]
 }

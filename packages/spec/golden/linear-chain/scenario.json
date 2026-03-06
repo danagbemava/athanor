@@ -1,13 +1,16 @@
 {
-  "bundle_hash": "hash-linear-chain",
+  "id": "linear-chain",
+  "name": "Linear Chain",
+  "version": 1,
   "entry_node_id": "d1",
   "nodes": [
-    { "id": "d1", "type": "decision", "decision_options": [{ "to": "d2" }] },
-    { "id": "d2", "type": "decision", "decision_options": [{ "to": "d3" }] },
-    { "id": "d3", "type": "decision", "decision_options": [{ "to": "d4" }] },
-    { "id": "d4", "type": "decision", "decision_options": [{ "to": "d5" }] },
-    { "id": "d5", "type": "decision", "decision_options": [{ "to": "terminal" }] },
-    { "id": "terminal", "type": "terminal", "outcome": "success" }
+    { "id": "d1", "type": "DecisionNode", "decision_options": [{ "to": "d2" }] },
+    { "id": "d2", "type": "DecisionNode", "decision_options": [{ "to": "d3" }] },
+    { "id": "d3", "type": "DecisionNode", "decision_options": [{ "to": "d4" }] },
+    { "id": "d4", "type": "DecisionNode", "decision_options": [{ "to": "d5" }] },
+    { "id": "d5", "type": "DecisionNode", "decision_options": [{ "to": "terminal" }] },
+    { "id": "terminal", "type": "TerminalNode", "outcome": "success" }
   ],
-  "initial_state": {}
+  "edges": [],
+  "stateSchema": {}
 }

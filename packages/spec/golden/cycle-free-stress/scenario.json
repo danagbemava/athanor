@@ -1,22 +1,28 @@
 {
-  "bundle_hash": "hash-cycle-free-stress",
+  "id": "cycle-free-stress",
+  "name": "Cycle Free Stress",
+  "version": 1,
   "entry_node_id": "root",
   "nodes": [
     {
       "id": "root",
-      "type": "decision",
+      "type": "DecisionNode",
       "decision_options": [
-        { "to": "a" },
-        { "to": "b" },
-        { "to": "c" }
+        { "to": "a1" },
+        { "to": "b1" },
+        { "to": "c1" }
       ]
     },
-    { "id": "a", "type": "decision", "decision_options": [{ "to": "a_terminal" }] },
-    { "id": "b", "type": "decision", "decision_options": [{ "to": "b_terminal" }] },
-    { "id": "c", "type": "decision", "decision_options": [{ "to": "c_terminal" }] },
-    { "id": "a_terminal", "type": "terminal", "outcome": "a_done" },
-    { "id": "b_terminal", "type": "terminal", "outcome": "b_done" },
-    { "id": "c_terminal", "type": "terminal", "outcome": "c_done" }
+    { "id": "a1", "type": "DecisionNode", "decision_options": [{ "to": "a2" }] },
+    { "id": "a2", "type": "DecisionNode", "decision_options": [{ "to": "a_terminal" }] },
+    { "id": "b1", "type": "DecisionNode", "decision_options": [{ "to": "b2" }] },
+    { "id": "b2", "type": "DecisionNode", "decision_options": [{ "to": "b_terminal" }] },
+    { "id": "c1", "type": "DecisionNode", "decision_options": [{ "to": "c2" }] },
+    { "id": "c2", "type": "DecisionNode", "decision_options": [{ "to": "c_terminal" }] },
+    { "id": "a_terminal", "type": "TerminalNode", "outcome": "a_done" },
+    { "id": "b_terminal", "type": "TerminalNode", "outcome": "b_done" },
+    { "id": "c_terminal", "type": "TerminalNode", "outcome": "c_done" }
   ],
-  "initial_state": {}
+  "edges": [],
+  "stateSchema": {}
 }
