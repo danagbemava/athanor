@@ -16,12 +16,14 @@ const props = withDefaults(
         title?: string;
         description?: string;
         showLoadSample?: boolean;
+        compact?: boolean;
     }>(),
     {
         title: "Quick Actions",
         description:
             "Create drafts, version scenarios, and run validation checks.",
         showLoadSample: true,
+        compact: false,
     },
 );
 
@@ -38,8 +40,9 @@ const {
     createScenario,
     saveNewVersion,
     validateScenario,
-    loadExampleGraph,
 } = useScenarioStudio();
+
+const { loadExampleCanvasGraph } = useScenarioCanvas();
 </script>
 
 <template>
@@ -48,8 +51,14 @@ const {
             <CardTitle class="text-lg">{{ props.title }}</CardTitle>
             <CardDescription>{{ props.description }}</CardDescription>
         </CardHeader>
-        <CardContent class="space-y-4">
-            <div class="grid gap-4 sm:grid-cols-2">
+        <CardContent :class="props.compact ? 'space-y-3' : 'space-y-4'">
+            <div
+                :class="
+                    props.compact
+                        ? 'grid gap-3 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1.2fr)]'
+                        : 'grid gap-4 sm:grid-cols-2'
+                "
+            >
                 <div class="space-y-2">
                     <p
                         class="text-xs font-medium uppercase tracking-wide text-muted-foreground"
@@ -72,21 +81,27 @@ const {
                         placeholder="Existing scenario ID for versioning"
                     />
                 </div>
+
+                <div class="space-y-2">
+                    <p
+                        class="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                    >
+                        Description
+                    </p>
+                    <Input
+                        v-model="scenarioDescription"
+                        placeholder="High-level context for this scenario"
+                    />
+                </div>
             </div>
 
-            <div class="space-y-2">
-                <p
-                    class="text-xs font-medium uppercase tracking-wide text-muted-foreground"
-                >
-                    Description
-                </p>
-                <Input
-                    v-model="scenarioDescription"
-                    placeholder="High-level context for this scenario"
-                />
-            </div>
-
-            <div class="flex flex-wrap gap-2">
+            <div
+                :class="
+                    props.compact
+                        ? 'flex flex-wrap items-center gap-2 border-t border-border/70 pt-3'
+                        : 'flex flex-wrap gap-2'
+                "
+            >
                 <Button :disabled="!canCreate" @click="createScenario">
                     <Save class="mr-2 size-4" />
                     {{ isSaving ? "Saving..." : "Create Draft" }}
@@ -109,7 +124,7 @@ const {
                 <Button
                     v-if="props.showLoadSample"
                     variant="ghost"
-                    @click="loadExampleGraph"
+                    @click="loadExampleCanvasGraph"
                 >
                     Load Sample Builder Graph
                 </Button>
