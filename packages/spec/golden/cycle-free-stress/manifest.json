@@ -1,13 +1,13 @@
 {
   "scenario_source": "scenario.json",
-  "expected_bundle_hash": "hash-cycle-free-stress",
+  "expected_bundle_hash": "5e1b9e316e467dfb8dcf3cbbb5d4d8fa887eb80aaa5a73e0a4420138485aa02e",
   "runs": [
     {
       "seed": 2,
       "agent_policy": "scripted",
       "scripted_choices": [1, 0],
       "expected_outcome": "b_done",
-      "expected_steps": 2
+      "expected_steps": 3
     }
   ]
 }

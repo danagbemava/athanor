@@ -1,0 +1,27 @@
+{
+  "scenario_source": "scenario.json",
+  "expected_bundle_hash": "d9092c46b6a4569f0ec4774d54c82997bd2987d5fcb3e4acc9d054e4c748be62",
+  "runs": [
+    {
+      "seed": 42,
+      "agent_policy": "scripted",
+      "scripted_choices": [1, 0, 0, 0],
+      "expected_outcome": "Contained: Clean",
+      "expected_steps": 5
+    },
+    {
+      "seed": 7,
+      "agent_policy": "scripted",
+      "scripted_choices": [0],
+      "expected_outcome": "False Negative",
+      "expected_steps": 1
+    },
+    {
+      "seed": 99,
+      "agent_policy": "scripted",
+      "scripted_choices": [1, 0, 1, 0],
+      "expected_outcome": "Contained: Evidence-Rich",
+      "expected_steps": 7
+    }
+  ]
+}

@@ -1,0 +1,165 @@
+{
+  "id": "security-incident-drill",
+  "name": "Security Incident Response Drill",
+  "version": 1,
+  "entry_node_id": "start",
+  "initial_state": {
+    "alert_triaged": false,
+    "evidence_collected": false,
+    "escalated": false,
+    "attacker_dwell_time": 0,
+    "containment_status": "none",
+    "data_exfiltrated": false
+  },
+  "nodes": [
+    {
+      "id": "start",
+      "type": "DecisionNode",
+      "decision_options": [
+        { "to": "false_negative" },
+        { "to": "triage_complete" }
+      ]
+    },
+    {
+      "id": "triage_complete",
+      "type": "DecisionNode",
+      "effects": [
+        { "op": "set", "path": "alert_triaged", "value": true }
+      ],
+      "decision_options": [
+        { "to": "link_clicked" }
+      ]
+    },
+    {
+      "id": "link_clicked",
+      "type": "ChanceNode",
+      "chance_options": [
+        { "to": "notify_or_close", "weight": 0.35 },
+        { "to": "isolate_or_forensics", "weight": 0.65 }
+      ]
+    },
+    {
+      "id": "notify_or_close",
+      "type": "DecisionNode",
+      "decision_options": [
+        { "to": "contained_proactive" },
+        { "to": "near_miss" }
+      ]
+    },
+    {
+      "id": "isolate_or_forensics",
+      "type": "DecisionNode",
+      "decision_options": [
+        { "to": "lateral_movement" },
+        { "to": "forensics_prep" }
+      ]
+    },
+    {
+      "id": "lateral_movement",
+      "type": "ChanceNode",
+      "chance_options": [
+        { "to": "escalate_after_lateral", "weight": 0.30 },
+        { "to": "contained_clean", "weight": 0.70 }
+      ]
+    },
+    {
+      "id": "escalate_after_lateral",
+      "type": "DecisionNode",
+      "decision_options": [
+        { "to": "contained_escalated" },
+        { "to": "partial_breach" }
+      ]
+    },
+    {
+      "id": "forensics_prep",
+      "type": "DecisionNode",
+      "effects": [
+        { "op": "increment", "path": "attacker_dwell_time", "value": 2 },
+        { "op": "set", "path": "evidence_collected", "value": true }
+      ],
+      "decision_options": [
+        { "to": "forensics_detection" }
+      ]
+    },
+    {
+      "id": "forensics_detection",
+      "type": "ChanceNode",
+      "chance_options": [
+        { "to": "data_exfiltrated", "weight": 0.40 },
+        { "to": "escalate_after_forensics", "weight": 0.60 }
+      ]
+    },
+    {
+      "id": "escalate_after_forensics",
+      "type": "DecisionNode",
+      "decision_options": [
+        { "to": "contained_evidence_rich" },
+        { "to": "contained_solo" }
+      ]
+    },
+    {
+      "id": "false_negative",
+      "type": "TerminalNode",
+      "outcome": "False Negative"
+    },
+    {
+      "id": "near_miss",
+      "type": "TerminalNode",
+      "outcome": "Near Miss"
+    },
+    {
+      "id": "contained_proactive",
+      "type": "TerminalNode",
+      "outcome": "Contained: Proactive"
+    },
+    {
+      "id": "partial_breach",
+      "type": "TerminalNode",
+      "outcome": "Partial Breach"
+    },
+    {
+      "id": "contained_escalated",
+      "type": "TerminalNode",
+      "outcome": "Contained: Escalated",
+      "effects": [
+        { "op": "set", "path": "escalated", "value": true },
+        { "op": "set", "path": "containment_status", "value": "full" }
+      ]
+    },
+    {
+      "id": "contained_clean",
+      "type": "TerminalNode",
+      "outcome": "Contained: Clean",
+      "effects": [
+        { "op": "set", "path": "containment_status", "value": "full" }
+      ]
+    },
+    {
+      "id": "data_exfiltrated",
+      "type": "TerminalNode",
+      "outcome": "Data Exfiltrated",
+      "effects": [
+        { "op": "set", "path": "data_exfiltrated", "value": true }
+      ]
+    },
+    {
+      "id": "contained_evidence_rich",
+      "type": "TerminalNode",
+      "outcome": "Contained: Evidence-Rich",
+      "effects": [
+        { "op": "set", "path": "escalated", "value": true },
+        { "op": "set", "path": "containment_status", "value": "full" }
+      ]
+    },
+    {
+      "id": "contained_solo",
+      "type": "TerminalNode",
+      "outcome": "Contained: Solo",
+      "effects": [
+        { "op": "set", "path": "containment_status", "value": "partial" }
+      ]
+    }
+  ],
+  "edges": [],
+  "stateSchema": {}
+}

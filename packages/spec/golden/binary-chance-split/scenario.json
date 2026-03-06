@@ -1,17 +1,20 @@
 {
-  "bundle_hash": "hash-binary-chance-split",
+  "id": "binary-chance-split",
+  "name": "Binary Chance Split",
+  "version": 1,
   "entry_node_id": "chance",
   "nodes": [
     {
       "id": "chance",
-      "type": "chance",
+      "type": "ChanceNode",
       "chance_options": [
         { "to": "success", "weight": 1.0 },
         { "to": "failure", "weight": 0.0 }
       ]
     },
-    { "id": "success", "type": "terminal", "outcome": "success" },
-    { "id": "failure", "type": "terminal", "outcome": "failure" }
+    { "id": "success", "type": "TerminalNode", "outcome": "success" },
+    { "id": "failure", "type": "TerminalNode", "outcome": "failure" }
   ],
-  "initial_state": {}
+  "edges": [],
+  "stateSchema": {}
 }

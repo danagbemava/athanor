@@ -1,15 +1,31 @@
 {
-  "bundle_hash": "hash-deep-graph",
+  "id": "deep-graph",
+  "name": "Deep Graph",
+  "version": 1,
   "entry_node_id": "n1",
   "nodes": [
-    { "id": "n1", "type": "decision", "decision_options": [{ "to": "n2" }] },
-    { "id": "n2", "type": "decision", "decision_options": [{ "to": "n3" }] },
-    { "id": "n3", "type": "chance", "chance_options": [{ "to": "n4", "weight": 1.0 }] },
-    { "id": "n4", "type": "decision", "decision_options": [{ "to": "n5" }] },
-    { "id": "n5", "type": "decision", "decision_options": [{ "to": "n6" }] },
-    { "id": "n6", "type": "chance", "chance_options": [{ "to": "n7", "weight": 1.0 }] },
-    { "id": "n7", "type": "decision", "decision_options": [{ "to": "terminal" }] },
-    { "id": "terminal", "type": "terminal", "outcome": "deep_success" }
+    { "id": "n1", "type": "DecisionNode", "decision_options": [{ "to": "n2" }] },
+    { "id": "n2", "type": "DecisionNode", "decision_options": [{ "to": "n3" }] },
+    { "id": "n3", "type": "ChanceNode", "chance_options": [{ "to": "n4", "weight": 1.0 }] },
+    { "id": "n4", "type": "DecisionNode", "decision_options": [{ "to": "n5" }] },
+    { "id": "n5", "type": "DecisionNode", "decision_options": [{ "to": "n6" }] },
+    { "id": "n6", "type": "ChanceNode", "chance_options": [{ "to": "n7", "weight": 1.0 }] },
+    { "id": "n7", "type": "DecisionNode", "decision_options": [{ "to": "n8" }] },
+    { "id": "n8", "type": "DecisionNode", "decision_options": [{ "to": "n9" }] },
+    { "id": "n9", "type": "ChanceNode", "chance_options": [{ "to": "n10", "weight": 1.0 }] },
+    { "id": "n10", "type": "DecisionNode", "decision_options": [{ "to": "n11" }] },
+    { "id": "n11", "type": "DecisionNode", "decision_options": [{ "to": "n12" }] },
+    { "id": "n12", "type": "ChanceNode", "chance_options": [{ "to": "n13", "weight": 1.0 }] },
+    { "id": "n13", "type": "DecisionNode", "decision_options": [{ "to": "n14" }] },
+    { "id": "n14", "type": "DecisionNode", "decision_options": [{ "to": "n15" }] },
+    { "id": "n15", "type": "ChanceNode", "chance_options": [{ "to": "n16", "weight": 1.0 }] },
+    { "id": "n16", "type": "DecisionNode", "decision_options": [{ "to": "n17" }] },
+    { "id": "n17", "type": "DecisionNode", "decision_options": [{ "to": "n18" }] },
+    { "id": "n18", "type": "ChanceNode", "chance_options": [{ "to": "n19", "weight": 1.0 }] },
+    { "id": "n19", "type": "DecisionNode", "decision_options": [{ "to": "n20" }] },
+    { "id": "n20", "type": "DecisionNode", "decision_options": [{ "to": "terminal" }] },
+    { "id": "terminal", "type": "TerminalNode", "outcome": "deep_success" }
   ],
-  "initial_state": {}
+  "edges": [],
+  "stateSchema": {}
 }

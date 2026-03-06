@@ -1,6 +1,6 @@
 {
   "scenario_source": "scenario.json",
-  "expected_bundle_hash": "hash-state-conditional-branch",
+  "expected_bundle_hash": "7c1fef13622ca4da170f6e1e554f315c4d090ac87e7ecca8417a8a81aa516e2c",
   "runs": [
     {
       "seed": 13,

@@ -1,6 +1,6 @@
 {
   "scenario_source": "scenario.json",
-  "expected_bundle_hash": "hash-linear-chain",
+  "expected_bundle_hash": "105961172606270f40eefc6a225188f8fce272eeed8bae3a73a615c477d3298e",
   "runs": [
     {
       "seed": 1,
