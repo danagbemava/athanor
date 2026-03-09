@@ -44,4 +44,19 @@ class WebConfigIntegrationTests {
 				.contains("POST")
 		);
 	}
+
+	@Test
+	void prometheusEndpointExposesQueueDepthMetric() throws Exception {
+		HttpRequest request = HttpRequest.newBuilder()
+			.uri(URI.create("http://127.0.0.1:" + port + "/actuator/prometheus"))
+			.GET()
+			.build();
+
+		HttpResponse<String> response = HttpClient
+			.newHttpClient()
+			.send(request, HttpResponse.BodyHandlers.ofString());
+
+		assertEquals(200, response.statusCode());
+		assertTrue(response.body().contains("athanor_jobs_queue_depth"));
+	}
 }

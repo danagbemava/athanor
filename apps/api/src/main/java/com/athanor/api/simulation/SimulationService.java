@@ -30,7 +30,15 @@ public class SimulationService {
 		UUID scenarioId,
 		SimulationRequest request
 	) {
-		SimulationRequest normalizedRequest = normalize(request);
+		return simulateLatestScenario(scenarioId, request, null);
+	}
+
+	public SimulationSummary simulateLatestScenario(
+		UUID scenarioId,
+		SimulationRequest request,
+		SimulationProgressListener progressListener
+	) {
+		SimulationRequest normalizedRequest = normalizeRequest(request);
 		CompilerService.CompiledBundle compiledBundle = compilerService.compileScenarioBundle(
 			scenarioId
 		);
@@ -53,6 +61,9 @@ public class SimulationService {
 			);
 			outcomeCounts.merge(result.outcome(), 1, Integer::sum);
 			totalSteps += result.stepsTaken();
+			if (progressListener != null) {
+				progressListener.onRunCompleted(index + 1, normalizedRequest.runCount(), runs.getLast());
+			}
 			if (index + 1 < normalizedRequest.runCount()) {
 				seed = Math.addExact(seed, 1L);
 			}
@@ -77,7 +88,7 @@ public class SimulationService {
 		);
 	}
 
-	private SimulationRequest normalize(SimulationRequest request) {
+	public SimulationRequest normalizeRequest(SimulationRequest request) {
 		SimulationRequest value = request == null
 			? new SimulationRequest(null, null, null, null)
 			: request;
@@ -698,4 +709,9 @@ public class SimulationService {
 	public record TraceSelection(int index, String to, Double weight, TraceGuard guard) {}
 
 	public record TraceGuard(String var, Object equalsValue) {}
+
+	@FunctionalInterface
+	public interface SimulationProgressListener {
+		void onRunCompleted(int completedRuns, int totalRuns, SimulationRun run);
+	}
 }
