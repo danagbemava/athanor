@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CircleAlert, Save, ShieldCheck } from "lucide-vue-next";
+import { CircleAlert, Play, Save, ShieldCheck } from "lucide-vue-next";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,18 +31,36 @@ const {
     scenarioName,
     scenarioDescription,
     scenarioId,
+    simulationRunCount,
     graphValidationIssues,
     isSaving,
     isValidating,
+    isSimulating,
     canCreate,
     canSaveVersion,
     canValidate,
+    canSimulate,
     createScenario,
+    runSimulation,
     saveNewVersion,
     validateScenario,
 } = useScenarioStudio();
 
 const { loadExampleCanvasGraph } = useScenarioCanvas();
+
+const simulationAgents = computed(() => {
+    const runCount = Number.isFinite(simulationRunCount.value)
+        ? Math.max(1, Math.trunc(simulationRunCount.value))
+        : 1;
+    const agentCount = Math.min(5, Math.max(3, Math.ceil(runCount / 8)));
+
+    return Array.from({ length: agentCount }, (_, index) => ({
+        id: `agent-${index}`,
+        duration: 1.8 + index * 0.35,
+        delay: index * 0.18,
+        hue: index % 2 === 0 ? "bg-sky-400/90" : "bg-emerald-400/90",
+    }));
+});
 </script>
 
 <template>
@@ -98,6 +116,83 @@ const { loadExampleCanvasGraph } = useScenarioCanvas();
             <div
                 :class="
                     props.compact
+                        ? 'flex flex-wrap items-end gap-3 rounded-lg border border-border/70 bg-muted/20 px-3 py-2'
+                        : 'grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]'
+                "
+            >
+                <div class="space-y-2">
+                    <p
+                        class="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                    >
+                        Sync Run Count
+                    </p>
+                    <Input
+                        v-model.number="simulationRunCount"
+                        type="number"
+                        min="1"
+                        max="250"
+                        class="max-w-32"
+                    />
+                </div>
+                <Button
+                    variant="outline"
+                    :disabled="!canSimulate"
+                    @click="runSimulation"
+                >
+                    <Play class="mr-2 size-4" />
+                    {{ isSimulating ? "Running simulations..." : "Run Simulation" }}
+                </Button>
+            </div>
+
+            <div
+                v-if="isSimulating"
+                class="rounded-lg border border-sky-500/30 bg-sky-500/5 px-3 py-3"
+            >
+                <div
+                    class="flex flex-wrap items-center justify-between gap-3 border-b border-sky-500/10 pb-2"
+                >
+                    <div>
+                        <p
+                            class="text-xs font-medium uppercase tracking-[0.24em] text-sky-200/70"
+                        >
+                            Simulation In Progress
+                        </p>
+                        <p class="mt-1 text-sm text-foreground">
+                            Executing {{ simulationRunCount }} runs with
+                            <span class="font-semibold">random-v1</span>
+                        </p>
+                    </div>
+                    <div
+                        class="rounded-full border border-sky-400/20 bg-sky-500/10 px-2.5 py-1 text-xs text-sky-100"
+                    >
+                        Results will appear automatically
+                    </div>
+                </div>
+
+                <div class="mt-3 space-y-2">
+                    <div
+                        v-for="agent in simulationAgents"
+                        :key="agent.id"
+                        class="relative h-7 overflow-hidden rounded-full border border-border/60 bg-background/70"
+                    >
+                        <div
+                            class="absolute inset-y-1 left-2 right-2 rounded-full bg-[linear-gradient(90deg,rgba(56,189,248,0.06),rgba(56,189,248,0.14),rgba(16,185,129,0.08))]"
+                        />
+                        <div
+                            class="simulation-agent absolute top-1/2 size-3 -translate-y-1/2 rounded-full shadow-[0_0_18px_rgba(56,189,248,0.35)]"
+                            :class="agent.hue"
+                            :style="{
+                                animationDuration: `${agent.duration}s`,
+                                animationDelay: `${agent.delay}s`,
+                            }"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <div
+                :class="
+                    props.compact
                         ? 'flex flex-wrap items-center gap-2 border-t border-border/70 pt-3'
                         : 'flex flex-wrap gap-2'
                 "
@@ -147,3 +242,29 @@ const { loadExampleCanvasGraph } = useScenarioCanvas();
         </CardContent>
     </Card>
 </template>
+
+<style scoped>
+@keyframes simulation-agent-lane {
+    0% {
+        transform: translate(0, -50%) scale(0.92);
+        opacity: 0.7;
+    }
+
+    50% {
+        transform: translate(calc(100% - 2.5rem), -50%) scale(1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translate(0, -50%) scale(0.92);
+        opacity: 0.7;
+    }
+}
+
+.simulation-agent {
+    animation-name: simulation-agent-lane;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+    left: 0.6rem;
+}
+</style>

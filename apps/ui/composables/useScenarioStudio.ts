@@ -32,6 +32,67 @@ export type ValidationRun = {
   recordedAt: string;
 };
 
+export type SimulationRun = {
+  seed: number;
+  outcome: string;
+  stepsTaken: number;
+  finalState: Record<string, unknown>;
+  trace: SimulationTraceEvent[];
+};
+
+export type SimulationTraceEffect = {
+  op: string;
+  path: string;
+  value: unknown;
+};
+
+export type SimulationTraceGuard = {
+  var: string;
+  equalsValue: unknown;
+};
+
+export type SimulationTraceOption = {
+  index: number;
+  to: string;
+  weight?: number | null;
+  guard?: SimulationTraceGuard | null;
+};
+
+export type SimulationTraceSelection = {
+  index: number;
+  to: string;
+  weight?: number | null;
+  guard?: SimulationTraceGuard | null;
+};
+
+export type SimulationTraceEvent = {
+  step: number;
+  nodeId: string;
+  nodeType: string;
+  stateBefore: Record<string, unknown>;
+  stateAfter: Record<string, unknown>;
+  effectsApplied: SimulationTraceEffect[];
+  availableOptions: SimulationTraceOption[];
+  selectedOption?: SimulationTraceSelection | null;
+  nextNodeId?: string | null;
+  outcome?: string | null;
+};
+
+export type SimulationSnapshot = {
+  scenarioId: string;
+  versionId: string;
+  versionNumber: number;
+  bundleHash: string;
+  agentVersion: string;
+  runCount: number;
+  seedStart: number;
+  maxSteps: number;
+  averageSteps: number;
+  outcomeCounts: Record<string, number>;
+  runs: SimulationRun[];
+  completedAt: string;
+};
+
 export type NodeType = "DecisionNode" | "ChanceNode" | "TerminalNode";
 
 export type DecisionOptionDraft = {
@@ -182,14 +243,20 @@ export function useScenarioStudio() {
 
   const isSaving = useState<boolean>("studio:is-saving", () => false);
   const isValidating = useState<boolean>("studio:is-validating", () => false);
+  const isSimulating = useState<boolean>("studio:is-simulating", () => false);
   const requestError = useState<string>("studio:request-error", () => "");
   const statusNote = useState<string>("studio:status-note", () => "Ready");
+  const simulationRunCount = useState<number>("studio:simulation-run-count", () => 25);
   const scenarioResponse = useState<ScenarioSnapshot | null>(
     "studio:scenario-response",
     () => null,
   );
   const validationResponse = useState<ValidationSnapshot | null>(
     "studio:validation-response",
+    () => null,
+  );
+  const simulationResponse = useState<SimulationSnapshot | null>(
+    "studio:simulation-response",
     () => null,
   );
 
@@ -625,6 +692,12 @@ export function useScenarioStudio() {
   const canValidate = computed(
     () => !isValidating.value && scenarioId.value.trim().length > 0,
   );
+  const canSimulate = computed(
+    () =>
+      !isSimulating.value &&
+      scenarioId.value.trim().length > 0 &&
+      graphValidationIssues.value.length === 0,
+  );
 
   function pushActivity(
     title: string,
@@ -790,6 +863,7 @@ export function useScenarioStudio() {
       { from: "chance", to: "declined" },
     ];
 
+    simulationResponse.value = null;
     statusNote.value = "Loaded dashboard sample scenario";
     pushActivity(
       "Sample Graph Loaded",
@@ -907,6 +981,7 @@ export function useScenarioStudio() {
       scenarioResponse.value = payload as ScenarioSnapshot;
       scenarioId.value = scenarioResponse.value.scenarioId;
       validationResponse.value = null;
+      simulationResponse.value = null;
       upsertScenarioHistory(scenarioResponse.value);
       statusNote.value = `Created scenario ${scenarioId.value}`;
       pushActivity(
@@ -956,6 +1031,7 @@ export function useScenarioStudio() {
 
       scenarioResponse.value = payload as ScenarioSnapshot;
       validationResponse.value = null;
+      simulationResponse.value = null;
       upsertScenarioHistory(scenarioResponse.value);
       statusNote.value = `Saved version ${scenarioResponse.value.version.number}`;
       pushActivity(
@@ -1013,6 +1089,54 @@ export function useScenarioStudio() {
     }
   }
 
+  async function runSimulation() {
+    const firstIssue = graphValidationIssues.value[0];
+    if (firstIssue) {
+      statusNote.value = "Fix graph issues before running simulations";
+      return;
+    }
+
+    isSimulating.value = true;
+    requestError.value = "";
+    statusNote.value = "Running synchronous simulations...";
+
+    try {
+      const response = await fetch(
+        `${apiBaseUrl.value}/scenarios/${scenarioId.value}/simulate`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            runCount: Number.isFinite(simulationRunCount.value)
+              ? Math.max(1, Math.trunc(simulationRunCount.value))
+              : 25,
+            trace: true,
+          }),
+        },
+      );
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(String(payload?.error || "Simulation run failed."));
+      }
+
+      simulationResponse.value = payload as SimulationSnapshot;
+      statusNote.value = `Completed ${simulationResponse.value.runCount} simulation runs`;
+      pushActivity(
+        "Simulation Completed",
+        `${simulationResponse.value.runCount} runs executed for ${simulationResponse.value.scenarioId}.`,
+        "secondary",
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Simulation request failed.";
+      requestError.value = message;
+      pushActivity("Simulation Failed", message, "destructive");
+    } finally {
+      isSimulating.value = false;
+    }
+  }
+
   return {
     apiBaseUrl,
     nativeControlClass,
@@ -1027,10 +1151,13 @@ export function useScenarioStudio() {
     edges,
     isSaving,
     isValidating,
+    isSimulating,
     requestError,
     statusNote,
+    simulationRunCount,
     scenarioResponse,
     validationResponse,
+    simulationResponse,
     scenarioHistory,
     validationHistory,
     activityFeed,
@@ -1051,6 +1178,7 @@ export function useScenarioStudio() {
     canCreate,
     canSaveVersion,
     canValidate,
+    canSimulate,
     pushActivity,
     addNode,
     removeNode,
@@ -1070,5 +1198,6 @@ export function useScenarioStudio() {
     createScenario,
     saveNewVersion,
     validateScenario,
+    runSimulation,
   };
 }
