@@ -1,0 +1,9 @@
+{
+  "bundle_hash": "abc123",
+  "seed_start": 1,
+  "run_count": 2,
+  "agent_policy": "scripted-v1",
+  "scripted_choices": [0, 0],
+  "execution_mode": "analytics",
+  "max_steps": 100
+}

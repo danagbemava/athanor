@@ -5,6 +5,7 @@ import com.athanor.api.scenario.ScenarioService;
 import com.athanor.api.scenario.ValidationResult;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
@@ -15,10 +16,10 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
@@ -40,7 +41,6 @@ public class CompilerService {
 	private final ScenarioGraphValidator graphValidator;
 	private final BundleStore bundleStore;
 	private final ObjectMapper objectMapper;
-	private final Map<String, BundleRegistryEntry> registry = new ConcurrentHashMap<>();
 
 	public CompilerService(
 		ScenarioService scenarioService,
@@ -56,28 +56,21 @@ public class CompilerService {
 
 	public CompilationResult compileLatestScenario(UUID scenarioId) {
 		CompiledBundle bundle = compileScenarioBundle(scenarioId);
-		BundleStore.StoreResult storeResult = store(
+		BundleMetadata metadata = new BundleMetadata(
 			bundle.bundleHash(),
-			canonicalJson(bundle.payload())
+			bundle.scenarioId(),
+			bundle.versionId(),
+			bundle.versionNumber(),
+			java.time.Instant.now()
 		);
-		BundleRegistryEntry entry = registry.computeIfAbsent(
-			bundle.bundleHash(),
-			ignored -> new BundleRegistryEntry(
-				bundle.bundleHash(),
-				bundle.scenarioId(),
-				bundle.versionId(),
-				bundle.versionNumber(),
-				"draft",
-				storeResult.storedAt()
-			)
-		);
+		BundleStore.StoreResult storeResult = store(metadata, canonicalJson(bundle.payload()));
 
 		return new CompilationResult(
-			entry.scenarioId(),
-			entry.versionId(),
-			entry.versionNumber(),
-			entry.bundleHash(),
-			entry.storedAt()
+			storeResult.metadata().scenarioId(),
+			storeResult.metadata().versionId(),
+			storeResult.metadata().versionNumber(),
+			storeResult.metadata().bundleHash(),
+			storeResult.metadata().storedAt()
 		);
 	}
 
@@ -135,6 +128,23 @@ public class CompilerService {
 		return compileScenarioBundle(scenarioId).payload();
 	}
 
+	public BundleMetadata bundleMetadata(String bundleHash) {
+		return storedBundle(bundleHash).metadata();
+	}
+
+	public byte[] bundleContent(String bundleHash) {
+		try {
+			storedBundle(bundleHash);
+			return bundleStore.readContent(bundleHash);
+		} catch (IOException exception) {
+			throw new IllegalStateException("failed to read compiled bundle", exception);
+		}
+	}
+
+	public Path bundleContentPath(String bundleHash) {
+		return storedBundle(bundleHash).contentPath();
+	}
+
 	private ScenarioService.ScenarioValidationSnapshot validate(
 		UUID scenarioId,
 		UUID versionId,
@@ -152,11 +162,23 @@ public class CompilerService {
 		);
 	}
 
-	private BundleStore.StoreResult store(String bundleHash, byte[] payload) {
+	private BundleStore.StoreResult store(BundleMetadata metadata, byte[] payload) {
 		try {
-			return bundleStore.store(bundleHash, payload);
+			return bundleStore.store(metadata, payload);
 		} catch (IOException exception) {
 			throw new IllegalStateException("failed to store compiled bundle", exception);
+		}
+	}
+
+	private BundleStore.StoredBundle storedBundle(String bundleHash) {
+		try {
+			Optional<BundleStore.StoredBundle> bundle = bundleStore.find(bundleHash);
+			if (bundle.isEmpty()) {
+				throw new BundleNotFoundException("bundleHash not found");
+			}
+			return bundle.get();
+		} catch (IOException exception) {
+			throw new IllegalStateException("failed to read compiled bundle metadata", exception);
 		}
 	}
 
@@ -525,14 +547,5 @@ public class CompilerService {
 		int versionNumber,
 		String bundleHash,
 		Map<String, Object> payload
-	) {}
-
-	record BundleRegistryEntry(
-		String bundleHash,
-		UUID scenarioId,
-		UUID versionId,
-		int versionNumber,
-		String retentionClass,
-		Instant storedAt
 	) {}
 }

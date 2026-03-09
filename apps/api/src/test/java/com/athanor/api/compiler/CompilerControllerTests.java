@@ -1,7 +1,9 @@
 package com.athanor.api.compiler;
 
 import static org.hamcrest.Matchers.hasItem;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -41,14 +43,15 @@ class CompilerControllerTests {
 		CompilerService compilerService = new CompilerService(
 			scenarioService,
 			new ScenarioGraphValidator(),
-			new FilesystemBundleStore(tempDir),
+			new FilesystemBundleStore(tempDir, objectMapper),
 			objectMapper
 		);
 
 		mockMvc = MockMvcBuilders
 			.standaloneSetup(
 				new ScenarioController(scenarioService),
-				new CompilerController(compilerService)
+				new CompilerController(compilerService),
+				new BundleController(compilerService)
 			)
 			.setControllerAdvice(new ScenarioExceptionHandler(), new CompilerExceptionHandler())
 			.build();
@@ -90,11 +93,54 @@ class CompilerControllerTests {
 	}
 
 	@Test
+	void bundleEndpointsReturnStoredMetadataAndContent() throws Exception {
+		UUID scenarioId = createScenario(validGraph());
+
+		MvcResult compileResult = mockMvc
+			.perform(post("/scenarios/{id}/compile", scenarioId))
+			.andExpect(status().isCreated())
+			.andReturn();
+
+		String bundleHash = objectMapper
+			.readTree(compileResult.getResponse().getContentAsByteArray())
+			.get("bundleHash")
+			.asText();
+
+		mockMvc
+			.perform(get("/bundles/{bundleHash}", bundleHash))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.bundleHash").value(bundleHash))
+			.andExpect(jsonPath("$.scenarioId").value(scenarioId.toString()))
+			.andExpect(jsonPath("$.versionNumber").value(1))
+			.andExpect(jsonPath("$.storedAt").isNotEmpty());
+
+		mockMvc
+			.perform(get("/bundles/{bundleHash}/content", bundleHash))
+			.andExpect(status().isOk())
+			.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+			.andExpect(jsonPath("$.bundle_hash").value(bundleHash))
+			.andExpect(jsonPath("$.entry_node_id").value("start"));
+	}
+
+	@Test
+	void bundleEndpointsReturnNotFoundForUnknownHash() throws Exception {
+		mockMvc
+			.perform(get("/bundles/{bundleHash}", "missing"))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.error").value("bundleHash not found"));
+
+		mockMvc
+			.perform(get("/bundles/{bundleHash}/content", "missing"))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.error").value("bundleHash not found"));
+	}
+
+	@Test
 	void compileReturnsInternalServerErrorForIllegalState() throws Exception {
 		CompilerService failingCompilerService = new CompilerService(
 			new ScenarioService(new ScenarioGraphValidator(), objectMapper),
 			new ScenarioGraphValidator(),
-			new FilesystemBundleStore(tempDir),
+			new FilesystemBundleStore(tempDir, objectMapper),
 			objectMapper
 		) {
 			@Override
@@ -120,7 +166,7 @@ class CompilerControllerTests {
 		CompilerService failingCompilerService = new CompilerService(
 			new ScenarioService(new ScenarioGraphValidator(), objectMapper),
 			new ScenarioGraphValidator(),
-			new FilesystemBundleStore(tempDir),
+			new FilesystemBundleStore(tempDir, objectMapper),
 			objectMapper
 		) {
 			@Override
@@ -146,7 +192,7 @@ class CompilerControllerTests {
 		CompilerService failingCompilerService = new CompilerService(
 			new ScenarioService(new ScenarioGraphValidator(), objectMapper),
 			new ScenarioGraphValidator(),
-			new FilesystemBundleStore(tempDir),
+			new FilesystemBundleStore(tempDir, objectMapper),
 			objectMapper
 		) {
 			@Override

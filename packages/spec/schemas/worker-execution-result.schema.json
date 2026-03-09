@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WorkerExecutionResult",
+  "version": "0.1.0-scaffold",
+  "type": "object",
+  "required": [
+    "bundle_hash",
+    "agent_policy",
+    "agent_version",
+    "execution_mode",
+    "seed_start",
+    "run_count",
+    "max_steps",
+    "runs"
+  ],
+  "properties": {
+    "bundle_hash": { "type": "string", "minLength": 1 },
+    "agent_policy": { "type": "string", "minLength": 1 },
+    "agent_version": { "type": "string", "minLength": 1 },
+    "execution_mode": { "type": "string", "enum": ["optimization", "analytics"] },
+    "seed_start": { "type": "integer", "minimum": 0 },
+    "run_count": { "type": "integer", "minimum": 1 },
+    "max_steps": { "type": "integer", "minimum": 1 },
+    "runs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["bundle_hash", "seed", "agent_version", "outcome", "steps_taken"],
+        "properties": {
+          "bundle_hash": { "type": "string", "minLength": 1 },
+          "seed": { "type": "integer", "minimum": 0 },
+          "agent_version": { "type": "string", "minLength": 1 },
+          "outcome": { "type": "string", "minLength": 1 },
+          "steps_taken": { "type": "integer", "minimum": 0 },
+          "metrics": { "type": "object" },
+          "trace": {
+            "type": "array",
+            "items": { "type": "object" }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

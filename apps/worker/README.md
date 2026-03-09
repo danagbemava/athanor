@@ -1,8 +1,8 @@
-# Athanor Worker (Scaffold)
+# Athanor Worker
 
 ## Purpose
 
-Go simulation worker skeleton for deterministic runtime execution contracts.
+Go simulation worker for deterministic runtime execution contracts.
 
 ## Setup
 
@@ -12,7 +12,9 @@ Go simulation worker skeleton for deterministic runtime execution contracts.
 ## Run
 
 - `cd apps/worker && go run ./cmd/worker`
+- `cd apps/worker && go run ./cmd/worker run --bundle /path/to/bundle.json --request /path/to/request.json`
 
 ## Notes
 
-- PCG32, decision loop semantics, and full determinism guarantees are scaffolded only.
+- The CLI consumes executable bundle JSON plus a worker execution request and writes worker execution result JSON to stdout.
+- Execution currently supports `random-v1` and `scripted-v1` policies in `analytics` and `optimization` modes.

@@ -47,7 +47,7 @@ class OptimizationControllerTests {
 		CompilerService compilerService = new CompilerService(
 			scenarioService,
 			new ScenarioGraphValidator(),
-			new FilesystemBundleStore(tempDir),
+			new FilesystemBundleStore(tempDir, objectMapper),
 			objectMapper
 		);
 		SimulationService simulationService = new SimulationService(compilerService, objectMapper);

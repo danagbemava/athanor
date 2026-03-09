@@ -1,0 +1,18 @@
+{
+  "bundle_hash": "abc123",
+  "agent_policy": "random-v1",
+  "agent_version": "random-v1",
+  "execution_mode": "analytics",
+  "seed_start": 1,
+  "run_count": 1,
+  "max_steps": 100,
+  "runs": [
+    {
+      "bundle_hash": "",
+      "seed": -1,
+      "agent_version": "",
+      "outcome": "",
+      "steps_taken": -2
+    }
+  ]
+}

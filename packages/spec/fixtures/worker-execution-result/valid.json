@@ -1,0 +1,35 @@
+{
+  "bundle_hash": "abc123",
+  "agent_policy": "random-v1",
+  "agent_version": "random-v1",
+  "execution_mode": "analytics",
+  "seed_start": 1,
+  "run_count": 1,
+  "max_steps": 100,
+  "runs": [
+    {
+      "bundle_hash": "abc123",
+      "seed": 1,
+      "agent_version": "random-v1",
+      "outcome": "success",
+      "steps_taken": 1,
+      "metrics": {
+        "final_state": {}
+      },
+      "trace": [
+        {
+          "step": 0,
+          "node_id": "terminal",
+          "node_type": "terminal",
+          "state_before": {},
+          "state_after": {},
+          "effects_applied": [],
+          "available_options": [],
+          "selected_option": null,
+          "next_node_id": null,
+          "outcome": "success"
+        }
+      ]
+    }
+  ]
+}

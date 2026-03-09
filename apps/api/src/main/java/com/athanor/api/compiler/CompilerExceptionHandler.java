@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-@RestControllerAdvice(assignableTypes = CompilerController.class)
+@RestControllerAdvice(assignableTypes = { CompilerController.class, BundleController.class })
 public class CompilerExceptionHandler {
 
 	@ExceptionHandler(CompilerValidationException.class)
@@ -24,6 +24,12 @@ public class CompilerExceptionHandler {
 	@ExceptionHandler(IllegalArgumentException.class)
 	@ResponseStatus(HttpStatus.BAD_REQUEST)
 	public CompilationErrorResponse handleIllegalArgument(IllegalArgumentException exception) {
+		return new CompilationErrorResponse(exception.getMessage(), null);
+	}
+
+	@ExceptionHandler(BundleNotFoundException.class)
+	@ResponseStatus(HttpStatus.NOT_FOUND)
+	public CompilationErrorResponse handleBundleNotFound(BundleNotFoundException exception) {
 		return new CompilationErrorResponse(exception.getMessage(), null);
 	}
 

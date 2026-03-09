@@ -1,7 +1,11 @@
 package main
 
-import "fmt"
+import (
+	"os"
+
+	"github.com/athanor/apps/worker/internal/cli"
+)
 
 func main() {
-	fmt.Println("Athanor worker scaffold placeholder")
+	os.Exit(cli.Run(os.Args[1:], os.Stdout, os.Stderr))
 }
