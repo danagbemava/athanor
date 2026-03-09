@@ -2,6 +2,7 @@ package com.athanor.api.compiler;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -112,6 +113,18 @@ class CompilerServiceTests {
 		assertEquals(first.versionNumber(), metadata.versionNumber());
 		assertEquals(first.bundleHash(), bundleContent.get("bundle_hash"));
 		assertEquals(tempDir.resolve(first.bundleHash() + ".json"), reloaded.bundleContentPath(first.bundleHash()));
+	}
+
+	@Test
+	void bundleLookupRejectsPathLikeHashValues() {
+		assertThrows(
+			IllegalArgumentException.class,
+			() -> compilerService.bundleMetadata("../../etc/passwd")
+		);
+		assertThrows(
+			IllegalArgumentException.class,
+			() -> compilerService.bundleContent("../not-a-hash")
+		);
 	}
 
 	@Test

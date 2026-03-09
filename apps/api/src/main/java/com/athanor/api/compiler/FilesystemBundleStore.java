@@ -5,12 +5,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Optional;
+import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
 @Component
 public class FilesystemBundleStore implements BundleStore {
+
+	private static final Pattern BUNDLE_HASH_PATTERN = Pattern.compile("^[a-f0-9]{64}$");
 
 	private final Path rootDirectory;
 	private final ObjectMapper objectMapper;
@@ -21,7 +24,7 @@ public class FilesystemBundleStore implements BundleStore {
 	}
 
 	public FilesystemBundleStore(Path rootDirectory, ObjectMapper objectMapper) {
-		this.rootDirectory = rootDirectory;
+		this.rootDirectory = rootDirectory.toAbsolutePath().normalize();
 		this.objectMapper = objectMapper;
 	}
 
@@ -68,11 +71,27 @@ public class FilesystemBundleStore implements BundleStore {
 	}
 
 	private Path contentPath(String bundleHash) {
-		return rootDirectory.resolve(bundleHash + ".json");
+		return resolveBundlePath(bundleHash, ".json");
 	}
 
 	private Path metadataPath(String bundleHash) {
-		return rootDirectory.resolve(bundleHash + ".metadata.json");
+		return resolveBundlePath(bundleHash, ".metadata.json");
+	}
+
+	private Path resolveBundlePath(String bundleHash, String suffix) {
+		String normalizedHash = normalizeBundleHash(bundleHash);
+		Path resolved = rootDirectory.resolve(normalizedHash + suffix).normalize();
+		if (!resolved.startsWith(rootDirectory)) {
+			throw new IllegalArgumentException("invalid bundle hash");
+		}
+		return resolved;
+	}
+
+	private String normalizeBundleHash(String bundleHash) {
+		if (bundleHash == null || !BUNDLE_HASH_PATTERN.matcher(bundleHash).matches()) {
+			throw new IllegalArgumentException("invalid bundle hash");
+		}
+		return bundleHash;
 	}
 
 	private void writeMetadata(Path metadataPath, BundleMetadata metadata) throws IOException {

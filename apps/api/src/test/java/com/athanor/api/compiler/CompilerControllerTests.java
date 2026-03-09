@@ -124,15 +124,31 @@ class CompilerControllerTests {
 
 	@Test
 	void bundleEndpointsReturnNotFoundForUnknownHash() throws Exception {
+		String unknownBundleHash =
+			"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
 		mockMvc
-			.perform(get("/bundles/{bundleHash}", "missing"))
+			.perform(get("/bundles/{bundleHash}", unknownBundleHash))
 			.andExpect(status().isNotFound())
 			.andExpect(jsonPath("$.error").value("bundleHash not found"));
 
 		mockMvc
-			.perform(get("/bundles/{bundleHash}/content", "missing"))
+			.perform(get("/bundles/{bundleHash}/content", unknownBundleHash))
 			.andExpect(status().isNotFound())
 			.andExpect(jsonPath("$.error").value("bundleHash not found"));
+	}
+
+	@Test
+	void bundleEndpointsRejectInvalidHashFormat() throws Exception {
+		mockMvc
+			.perform(get("/bundles/{bundleHash}", "not-a-hash"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.error").value("invalid bundle hash"));
+
+		mockMvc
+			.perform(get("/bundles/{bundleHash}/content", "not-a-hash"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.error").value("invalid bundle hash"));
 	}
 
 	@Test
