@@ -10,7 +10,27 @@
     "agent_version": { "type": "string", "minLength": 1 },
     "outcome": { "type": "string", "minLength": 1 },
     "steps_taken": { "type": "integer", "minimum": 0 },
-    "metrics": { "type": "object" }
+    "metrics": { "type": "object" },
+    "trace": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["step", "node_id", "node_type", "state_before", "state_after", "effects_applied", "available_options"],
+        "properties": {
+          "step": { "type": "integer", "minimum": 0 },
+          "node_id": { "type": "string", "minLength": 1 },
+          "node_type": { "type": "string", "minLength": 1 },
+          "state_before": { "type": "object" },
+          "state_after": { "type": "object" },
+          "effects_applied": { "type": "array" },
+          "available_options": { "type": "array" },
+          "selected_option": { "type": ["object", "null"] },
+          "next_node_id": { "type": ["string", "null"] },
+          "outcome": { "type": ["string", "null"] }
+        },
+        "additionalProperties": true
+      }
+    }
   },
   "additionalProperties": false
 }

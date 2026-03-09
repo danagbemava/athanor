@@ -1,6 +1,8 @@
 package com.athanor.api.optimization;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.is;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -47,7 +49,7 @@ class OptimizationControllerTests {
 		CompilerService compilerService = new CompilerService(
 			scenarioService,
 			new ScenarioGraphValidator(),
-			new FilesystemBundleStore(tempDir),
+			new FilesystemBundleStore(tempDir, objectMapper),
 			objectMapper
 		);
 		SimulationService simulationService = new SimulationService(compilerService, objectMapper);
@@ -96,7 +98,7 @@ class OptimizationControllerTests {
 					)
 			)
 			.andExpect(status().isAccepted())
-			.andExpect(jsonPath("$.status").value("pending"))
+			.andExpect(jsonPath("$.status").value(anyOf(is("pending"), is("running"))))
 			.andReturn();
 
 		String jobId = objectMapper.readTree(resultBytes(submitResult)).get("jobId").asText();

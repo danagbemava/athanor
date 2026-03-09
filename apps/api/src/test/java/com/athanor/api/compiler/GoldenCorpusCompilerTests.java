@@ -32,7 +32,7 @@ class GoldenCorpusCompilerTests {
 	private final CompilerService compilerService = new CompilerService(
 		scenarioService,
 		new ScenarioGraphValidator(),
-		new FilesystemBundleStore(Path.of("build", "athanor", "bundles", "golden-tests")),
+		new FilesystemBundleStore(Path.of("build", "athanor", "bundles", "golden-tests"), objectMapper),
 		objectMapper
 	);
 

@@ -2,6 +2,7 @@ package com.athanor.api.compiler;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -42,7 +43,7 @@ class CompilerServiceTests {
 		compilerService = new CompilerService(
 			scenarioService,
 			new ScenarioGraphValidator(),
-			new FilesystemBundleStore(tempDir),
+			new FilesystemBundleStore(tempDir, objectMapper),
 			objectMapper
 		);
 	}
@@ -83,6 +84,47 @@ class CompilerServiceTests {
 		assertEquals("approved", json.at("/nodes/2/outcome").asText());
 		assertEquals("left", json.at("/nodes/1/chance_options/0/to").asText());
 		assertFalse(json.at("/nodes/0/decision_options").isMissingNode());
+	}
+
+	@Test
+	void storedBundleMetadataSurvivesCompilerServiceRecreation() throws Exception {
+		ScenarioService.ScenarioSnapshot created = scenarioService.createScenario(
+			new ScenarioService.CreateScenarioCommand("Scenario", null, validGraph())
+		);
+
+		CompilerService.CompilationResult first = compilerService.compileLatestScenario(created.scenarioId());
+
+		CompilerService reloaded = new CompilerService(
+			scenarioService,
+			new ScenarioGraphValidator(),
+			new FilesystemBundleStore(tempDir, objectMapper),
+			objectMapper
+		);
+
+		BundleMetadata metadata = reloaded.bundleMetadata(first.bundleHash());
+		Map<String, Object> bundleContent = objectMapper.readValue(
+			reloaded.bundleContent(first.bundleHash()),
+			Map.class
+		);
+
+		assertEquals(first.bundleHash(), metadata.bundleHash());
+		assertEquals(created.scenarioId(), metadata.scenarioId());
+		assertEquals(first.versionId(), metadata.versionId());
+		assertEquals(first.versionNumber(), metadata.versionNumber());
+		assertEquals(first.bundleHash(), bundleContent.get("bundle_hash"));
+		assertEquals(tempDir.resolve(first.bundleHash() + ".json"), reloaded.bundleContentPath(first.bundleHash()));
+	}
+
+	@Test
+	void bundleLookupRejectsPathLikeHashValues() {
+		assertThrows(
+			IllegalArgumentException.class,
+			() -> compilerService.bundleMetadata("../../etc/passwd")
+		);
+		assertThrows(
+			IllegalArgumentException.class,
+			() -> compilerService.bundleContent("../not-a-hash")
+		);
 	}
 
 	@Test
