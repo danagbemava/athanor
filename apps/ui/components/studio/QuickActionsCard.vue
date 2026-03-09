@@ -124,7 +124,7 @@ const simulationAgents = computed(() => {
                     <p
                         class="text-xs font-medium uppercase tracking-wide text-muted-foreground"
                     >
-                        Sync Run Count
+                        Run Count
                     </p>
                     <Input
                         v-model.number="simulationRunCount"

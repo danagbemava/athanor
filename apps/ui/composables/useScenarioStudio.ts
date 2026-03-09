@@ -93,6 +93,31 @@ export type SimulationSnapshot = {
   completedAt: string;
 };
 
+export type SubmittedSimulationJob = {
+  runId: string;
+  status: string;
+  createdAt: string;
+  totalRuns: number;
+};
+
+export type SimulationJobSnapshot = {
+  runId: string;
+  jobType: string;
+  status: string;
+  scenarioId: string;
+  bundleHash?: string | null;
+  totalRuns: number;
+  completedRuns: number;
+  progressPercent: number;
+  attempts: number;
+  deadLettered: boolean;
+  error?: string | null;
+  createdAt: string;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  summary?: SimulationSnapshot | null;
+};
+
 export type NodeType = "DecisionNode" | "ChanceNode" | "TerminalNode";
 
 export type DecisionOptionDraft = {
@@ -258,6 +283,14 @@ export function useScenarioStudio() {
   const simulationResponse = useState<SimulationSnapshot | null>(
     "studio:simulation-response",
     () => null,
+  );
+  const simulationJob = useState<SimulationJobSnapshot | null>(
+    "studio:simulation-job",
+    () => null,
+  );
+  const activeSimulationRunId = useState<string>(
+    "studio:active-simulation-run-id",
+    () => "",
   );
 
   const scenarioHistory = useState<ScenarioSnapshot[]>(
@@ -698,6 +731,16 @@ export function useScenarioStudio() {
       scenarioId.value.trim().length > 0 &&
       graphValidationIssues.value.length === 0,
   );
+  const simulationProgress = computed(() =>
+    Math.max(
+      0,
+      Math.min(
+        100,
+        simulationJob.value?.progressPercent ??
+          (simulationResponse.value ? 100 : 0),
+      ),
+    ),
+  );
 
   function pushActivity(
     title: string,
@@ -1098,44 +1141,140 @@ export function useScenarioStudio() {
 
     isSimulating.value = true;
     requestError.value = "";
-    statusNote.value = "Running synchronous simulations...";
+    simulationResponse.value = null;
+    simulationJob.value = null;
+    activeSimulationRunId.value = "";
+    statusNote.value = "Queueing simulation batch...";
 
     try {
-      const response = await fetch(
-        `${apiBaseUrl.value}/scenarios/${scenarioId.value}/simulate`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            runCount: Number.isFinite(simulationRunCount.value)
-              ? Math.max(1, Math.trunc(simulationRunCount.value))
-              : 25,
-            trace: true,
-          }),
-        },
-      );
+      const response = await fetch(`${apiBaseUrl.value}/simulate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scenarioId: scenarioId.value,
+          runCount: Number.isFinite(simulationRunCount.value)
+            ? Math.max(1, Math.trunc(simulationRunCount.value))
+            : 25,
+          trace: true,
+        }),
+      });
 
       const payload = await response.json();
       if (!response.ok) {
         throw new Error(String(payload?.error || "Simulation run failed."));
       }
 
-      simulationResponse.value = payload as SimulationSnapshot;
-      statusNote.value = `Completed ${simulationResponse.value.runCount} simulation runs`;
+      const submittedJob = payload as SubmittedSimulationJob;
+      activeSimulationRunId.value = submittedJob.runId;
+      simulationJob.value = {
+        runId: submittedJob.runId,
+        jobType: "simulation_batch",
+        status: submittedJob.status,
+        scenarioId: scenarioId.value,
+        totalRuns: submittedJob.totalRuns,
+        completedRuns: 0,
+        progressPercent: 0,
+        attempts: 0,
+        deadLettered: false,
+        createdAt: submittedJob.createdAt,
+        summary: null,
+      };
+      statusNote.value = `Queued ${submittedJob.totalRuns} simulation runs`;
       pushActivity(
-        "Simulation Completed",
-        `${simulationResponse.value.runCount} runs executed for ${simulationResponse.value.scenarioId}.`,
-        "secondary",
+        "Simulation Queued",
+        `${submittedJob.totalRuns} runs submitted as ${submittedJob.runId.slice(0, 8)}.`,
+        "outline",
       );
+      await pollSimulationJob(submittedJob.runId);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Simulation request failed.";
       requestError.value = message;
       pushActivity("Simulation Failed", message, "destructive");
+      throw error;
     } finally {
       isSimulating.value = false;
     }
   }
+
+  async function pollSimulationJob(runId: string) {
+    const maxAttempts = 120;
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const response = await fetch(`${apiBaseUrl.value}/runs/${runId}`);
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(String(payload?.error || "Simulation polling failed."));
+      }
+
+      const job = payload as SimulationJobSnapshot;
+      simulationJob.value = job;
+
+      if (job.summary) {
+        simulationResponse.value = job.summary;
+      }
+
+      if (job.status === "completed" && job.summary) {
+        simulationResponse.value = job.summary;
+        statusNote.value = `Completed ${job.summary.runCount} simulation runs`;
+        pushActivity(
+          "Simulation Completed",
+          `${job.summary.runCount} runs executed for ${job.summary.scenarioId}.`,
+          "secondary",
+        );
+        return;
+      }
+
+      if (job.status === "failed") {
+        const message = job.error || "Simulation job failed.";
+        requestError.value = message;
+        statusNote.value = job.deadLettered
+          ? "Simulation failed and was dead-lettered"
+          : "Simulation failed";
+        pushActivity("Simulation Failed", message, "destructive");
+        return;
+      }
+
+      statusNote.value =
+        job.status === "running"
+          ? `Simulation in progress: ${job.completedRuns}/${job.totalRuns} runs`
+          : "Waiting for simulation worker...";
+
+      await new Promise((resolve) => window.setTimeout(resolve, 1000));
+    }
+
+    throw new Error("Simulation polling timed out.");
+  }
+
+  function resetSimulationState() {
+    simulationResponse.value = null;
+    simulationJob.value = null;
+    activeSimulationRunId.value = "";
+  }
+
+  function simulationStatusTone(status: string): BadgeTone {
+    const normalized = status.toLowerCase();
+    if (normalized === "completed") {
+      return "secondary";
+    }
+    if (normalized === "failed") {
+      return "destructive";
+    }
+    if (normalized === "running") {
+      return "default";
+    }
+    return "outline";
+  }
+
+  watch(scenarioId, () => {
+    resetSimulationState();
+  });
+
+  watch(
+    () => scenarioResponse.value?.version.id,
+    () => {
+      resetSimulationState();
+    },
+  );
 
   return {
     apiBaseUrl,
@@ -1158,6 +1297,8 @@ export function useScenarioStudio() {
     scenarioResponse,
     validationResponse,
     simulationResponse,
+    simulationJob,
+    activeSimulationRunId,
     scenarioHistory,
     validationHistory,
     activityFeed,
@@ -1179,6 +1320,7 @@ export function useScenarioStudio() {
     canSaveVersion,
     canValidate,
     canSimulate,
+    simulationProgress,
     pushActivity,
     addNode,
     removeNode,
@@ -1192,6 +1334,7 @@ export function useScenarioStudio() {
     loadExampleGraph,
     formatTimestamp,
     formatPayload,
+    simulationStatusTone,
     statusBadgeVariant,
     riskBadgeVariant,
     selectScenario,
