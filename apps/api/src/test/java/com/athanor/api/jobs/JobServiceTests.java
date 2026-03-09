@@ -36,7 +36,10 @@ class JobServiceTests {
 			new SimulationService.SimulationRequest(6, 10L, 100, false)
 		);
 
-		assertEquals("pending", submitted.status());
+		assertTrue(
+			List.of("pending", "running").contains(submitted.status()),
+			"submitted job should be pending or already running"
+		);
 		assertEquals(6, submitted.totalRuns());
 
 		SimulationJobSnapshot completed = awaitCompletion(

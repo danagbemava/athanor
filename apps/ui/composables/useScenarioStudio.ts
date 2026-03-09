@@ -144,6 +144,54 @@ export type ScenarioAnalyticsSnapshot = {
   lastCompletedAt?: string | null;
 };
 
+export type OptimizationChanceOptionWeight = {
+  to: string;
+  weight: number;
+};
+
+export type OptimizationChanceNodeWeights = {
+  nodeId: string;
+  options: OptimizationChanceOptionWeight[];
+};
+
+export type OptimizationParameters = {
+  chanceWeights: OptimizationChanceNodeWeights[];
+};
+
+export type SubmittedOptimizationJob = {
+  jobId: string;
+  status: string;
+  createdAt: string;
+  maxIterations: number;
+  runsPerIteration: number;
+  strategy: string;
+};
+
+export type OptimizationJobSnapshot = {
+  jobId: string;
+  jobType: string;
+  status: string;
+  scenarioId: string;
+  baseVersionId: string;
+  baseVersionNumber: number;
+  strategy: string;
+  targetDistribution: Record<string, number>;
+  maxIterations: number;
+  runsPerIteration: number;
+  iterationsCompleted: number;
+  progressPercent: number;
+  bestScore: number;
+  converged: boolean;
+  bestParameters?: OptimizationParameters | null;
+  bestOutcomeDistribution: Record<string, number>;
+  error?: string | null;
+  createdAt: string;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  appliedVersionId?: string | null;
+  appliedVersionNumber?: number | null;
+};
+
 export type NodeType = "DecisionNode" | "ChanceNode" | "TerminalNode";
 
 export type DecisionOptionDraft = {
@@ -295,9 +343,22 @@ export function useScenarioStudio() {
   const isSaving = useState<boolean>("studio:is-saving", () => false);
   const isValidating = useState<boolean>("studio:is-validating", () => false);
   const isSimulating = useState<boolean>("studio:is-simulating", () => false);
+  const isOptimizing = useState<boolean>("studio:is-optimizing", () => false);
   const requestError = useState<string>("studio:request-error", () => "");
   const statusNote = useState<string>("studio:status-note", () => "Ready");
   const simulationRunCount = useState<number>("studio:simulation-run-count", () => 25);
+  const optimizationTargetJson = useState<string>(
+    "studio:optimization-target-json",
+    () => JSON.stringify({ approved: 0.6, declined: 0.4 }, null, 2),
+  );
+  const optimizationMaxIterations = useState<number>(
+    "studio:optimization-max-iterations",
+    () => 25,
+  );
+  const optimizationRunsPerIteration = useState<number>(
+    "studio:optimization-runs-per-iteration",
+    () => 500,
+  );
   const scenarioResponse = useState<ScenarioSnapshot | null>(
     "studio:scenario-response",
     () => null,
@@ -316,6 +377,10 @@ export function useScenarioStudio() {
   );
   const analyticsResponse = useState<ScenarioAnalyticsSnapshot | null>(
     "studio:analytics-response",
+    () => null,
+  );
+  const optimizationJob = useState<OptimizationJobSnapshot | null>(
+    "studio:optimization-job",
     () => null,
   );
   const analyticsWatchersInitialized = useState<boolean>(
@@ -337,6 +402,10 @@ export function useScenarioStudio() {
   const analyticsError = useState<string>("studio:analytics-error", () => "");
   const activeSimulationRunId = useState<string>(
     "studio:active-simulation-run-id",
+    () => "",
+  );
+  const activeOptimizationJobId = useState<string>(
+    "studio:active-optimization-job-id",
     () => "",
   );
 
@@ -778,6 +847,19 @@ export function useScenarioStudio() {
       scenarioId.value.trim().length > 0 &&
       graphValidationIssues.value.length === 0,
   );
+  const canOptimize = computed(
+    () =>
+      !isOptimizing.value &&
+      !isSimulating.value &&
+      scenarioId.value.trim().length > 0 &&
+      graphValidationIssues.value.length === 0,
+  );
+  const canApplyOptimization = computed(
+    () =>
+      optimizationJob.value?.status === "completed" &&
+      !optimizationJob.value?.appliedVersionId &&
+      !!optimizationJob.value?.bestParameters,
+  );
   const simulationProgress = computed(() =>
     Math.max(
       0,
@@ -785,6 +867,16 @@ export function useScenarioStudio() {
         100,
         simulationJob.value?.progressPercent ??
           (simulationResponse.value ? 100 : 0),
+      ),
+    ),
+  );
+  const optimizationProgress = computed(() =>
+    Math.max(
+      0,
+      Math.min(
+        100,
+        optimizationJob.value?.progressPercent ??
+          (optimizationJob.value?.status === "completed" ? 100 : 0),
       ),
     ),
   );
@@ -954,6 +1046,7 @@ export function useScenarioStudio() {
     ];
 
     simulationResponse.value = null;
+    resetOptimizationState();
     statusNote.value = "Loaded dashboard sample scenario";
     pushActivity(
       "Sample Graph Loaded",
@@ -1072,6 +1165,7 @@ export function useScenarioStudio() {
       scenarioId.value = scenarioResponse.value.scenarioId;
       validationResponse.value = null;
       simulationResponse.value = null;
+      resetOptimizationState();
       upsertScenarioHistory(scenarioResponse.value);
       statusNote.value = `Created scenario ${scenarioId.value}`;
       pushActivity(
@@ -1122,6 +1216,7 @@ export function useScenarioStudio() {
       scenarioResponse.value = payload as ScenarioSnapshot;
       validationResponse.value = null;
       simulationResponse.value = null;
+      resetOptimizationState();
       upsertScenarioHistory(scenarioResponse.value);
       statusNote.value = `Saved version ${scenarioResponse.value.version.number}`;
       pushActivity(
@@ -1299,6 +1394,203 @@ export function useScenarioStudio() {
     activeSimulationRunId.value = "";
   }
 
+  function parseOptimizationTargets() {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(optimizationTargetJson.value);
+    } catch {
+      throw new Error("Optimization target distribution must be valid JSON.");
+    }
+
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("Optimization target distribution must be a JSON object.");
+    }
+
+    const normalized: Record<string, number> = {};
+    for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+      const label = key.trim();
+      const numericValue =
+        typeof value === "number" ? value : Number.parseFloat(String(value));
+      if (!label) {
+        throw new Error("Optimization target keys must be non-empty.");
+      }
+      if (!Number.isFinite(numericValue) || numericValue < 0) {
+        throw new Error(
+          "Optimization target values must be finite numbers greater than or equal to zero.",
+        );
+      }
+      normalized[label] = numericValue;
+    }
+
+    if (Object.keys(normalized).length === 0) {
+      throw new Error("Optimization target distribution cannot be empty.");
+    }
+
+    return normalized;
+  }
+
+  async function runOptimization() {
+    const firstIssue = graphValidationIssues.value[0];
+    if (firstIssue) {
+      statusNote.value = "Fix graph issues before running optimization";
+      return;
+    }
+
+    isOptimizing.value = true;
+    requestError.value = "";
+    optimizationJob.value = null;
+    activeOptimizationJobId.value = "";
+    statusNote.value = "Queueing optimization job...";
+
+    try {
+      const targetDistribution = parseOptimizationTargets();
+      const response = await fetch(`${apiBaseUrl.value}/optimize`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scenarioId: scenarioId.value,
+          targetDistribution,
+          maxIterations: Number.isFinite(optimizationMaxIterations.value)
+            ? Math.max(1, Math.trunc(optimizationMaxIterations.value))
+            : 25,
+          runsPerIteration: Number.isFinite(optimizationRunsPerIteration.value)
+            ? Math.max(10, Math.trunc(optimizationRunsPerIteration.value))
+            : 500,
+          strategy: "random_search",
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(String(payload?.error || "Optimization request failed."));
+      }
+
+      const submittedJob = payload as SubmittedOptimizationJob;
+      activeOptimizationJobId.value = submittedJob.jobId;
+      optimizationJob.value = {
+        jobId: submittedJob.jobId,
+        jobType: "optimizer_random_search",
+        status: submittedJob.status,
+        scenarioId: scenarioId.value,
+        baseVersionId: scenarioResponse.value?.version.id ?? "",
+        baseVersionNumber: scenarioResponse.value?.version.number ?? 1,
+        strategy: submittedJob.strategy,
+        targetDistribution,
+        maxIterations: submittedJob.maxIterations,
+        runsPerIteration: submittedJob.runsPerIteration,
+        iterationsCompleted: 0,
+        progressPercent: 0,
+        bestScore: 0,
+        converged: false,
+        bestParameters: null,
+        bestOutcomeDistribution: {},
+        createdAt: submittedJob.createdAt,
+      };
+      statusNote.value = `Queued optimization job ${submittedJob.jobId.slice(0, 8)}`;
+      pushActivity(
+        "Optimization Queued",
+        `${submittedJob.maxIterations} iterations submitted for ${scenarioId.value}.`,
+        "outline",
+      );
+      await pollOptimizationJob(submittedJob.jobId);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Optimization request failed.";
+      requestError.value = message;
+      pushActivity("Optimization Failed", message, "destructive");
+      throw error;
+    } finally {
+      isOptimizing.value = false;
+    }
+  }
+
+  async function pollOptimizationJob(jobId: string) {
+    const maxAttempts = 180;
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const response = await fetch(`${apiBaseUrl.value}/optimize/${jobId}`);
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(String(payload?.error || "Optimization polling failed."));
+      }
+
+      const job = payload as OptimizationJobSnapshot;
+      optimizationJob.value = job;
+
+      if (job.status === "completed") {
+        statusNote.value = job.converged
+          ? `Optimization converged with score ${job.bestScore.toFixed(3)}`
+          : `Optimization completed with best score ${job.bestScore.toFixed(3)}`;
+        pushActivity(
+          "Optimization Completed",
+          `${job.iterationsCompleted} iterations completed for ${job.scenarioId}.`,
+          "secondary",
+        );
+        return;
+      }
+
+      if (job.status === "failed") {
+        const message = job.error || "Optimization job failed.";
+        requestError.value = message;
+        statusNote.value = "Optimization failed";
+        pushActivity("Optimization Failed", message, "destructive");
+        return;
+      }
+
+      statusNote.value = `Optimization in progress: ${job.iterationsCompleted}/${job.maxIterations} iterations`;
+      await new Promise((resolve) => window.setTimeout(resolve, 1000));
+    }
+
+    throw new Error("Optimization polling timed out.");
+  }
+
+  async function applyOptimization() {
+    const jobId = optimizationJob.value?.jobId;
+    if (!jobId) {
+      return;
+    }
+
+    requestError.value = "";
+    statusNote.value = "Applying optimized parameters as a new version...";
+
+    try {
+      const response = await fetch(`${apiBaseUrl.value}/optimize/${jobId}/apply`, {
+        method: "POST",
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(String(payload?.error || "Apply optimization failed."));
+      }
+
+      scenarioResponse.value = payload as ScenarioSnapshot;
+      upsertScenarioHistory(scenarioResponse.value);
+      if (optimizationJob.value) {
+        optimizationJob.value = {
+          ...optimizationJob.value,
+          appliedVersionId: scenarioResponse.value.version.id,
+          appliedVersionNumber: scenarioResponse.value.version.number,
+        };
+      }
+      resetSimulationState();
+      analyticsLoadedKey.value = "";
+      statusNote.value = `Applied optimized parameters to version ${scenarioResponse.value.version.number}`;
+      pushActivity(
+        "Optimization Applied",
+        `${scenarioResponse.value.scenarioId} moved to version ${scenarioResponse.value.version.number}.`,
+        "default",
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Apply optimization failed.";
+      requestError.value = message;
+      pushActivity("Optimization Apply Failed", message, "destructive");
+    }
+  }
+
+  function resetOptimizationState() {
+    optimizationJob.value = null;
+    activeOptimizationJobId.value = "";
+  }
+
   async function fetchScenarioAnalytics(
     targetScenarioId = scenarioId.value,
     options: { force?: boolean } = {},
@@ -1375,6 +1667,7 @@ export function useScenarioStudio() {
       scenarioId,
       (value) => {
         resetSimulationState();
+        resetOptimizationState();
         analyticsLoadedKey.value = "";
         void fetchScenarioAnalytics(value);
       },
@@ -1406,17 +1699,23 @@ export function useScenarioStudio() {
     isSaving,
     isValidating,
     isSimulating,
+    isOptimizing,
     requestError,
     statusNote,
     simulationRunCount,
+    optimizationTargetJson,
+    optimizationMaxIterations,
+    optimizationRunsPerIteration,
     scenarioResponse,
     validationResponse,
     simulationResponse,
     simulationJob,
     analyticsResponse,
+    optimizationJob,
     isLoadingAnalytics,
     analyticsError,
     activeSimulationRunId,
+    activeOptimizationJobId,
     scenarioHistory,
     validationHistory,
     activityFeed,
@@ -1438,7 +1737,10 @@ export function useScenarioStudio() {
     canSaveVersion,
     canValidate,
     canSimulate,
+    canOptimize,
+    canApplyOptimization,
     simulationProgress,
+    optimizationProgress,
     pushActivity,
     addNode,
     removeNode,
@@ -1460,6 +1762,8 @@ export function useScenarioStudio() {
     saveNewVersion,
     validateScenario,
     runSimulation,
+    runOptimization,
+    applyOptimization,
     fetchScenarioAnalytics,
   };
 }

@@ -121,7 +121,7 @@ class SimulationControllerTests {
 					.content(objectMapper.writeValueAsBytes(Map.of("runCount", 0)))
 			)
 			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.error").value("runCount must be between 1 and 250"));
+			.andExpect(jsonPath("$.error").value("runCount must be between 1 and 5000"));
 	}
 
 	@Test
