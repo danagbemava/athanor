@@ -14,6 +14,7 @@ import com.athanor.api.scenario.ScenarioService;
 import com.athanor.api.simulation.SimulationController;
 import com.athanor.api.simulation.SimulationExceptionHandler;
 import com.athanor.api.simulation.SimulationService;
+import com.athanor.api.telemetry.TelemetryService;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
@@ -52,7 +53,12 @@ class SimulationJobControllerTests {
 			objectMapper
 		);
 		SimulationService simulationService = new SimulationService(compilerService, objectMapper);
-		JobService jobService = new JobService(simulationService, new SimpleMeterRegistry());
+		TelemetryService telemetryService = new TelemetryService();
+		JobService jobService = new JobService(
+			simulationService,
+			telemetryService,
+			new SimpleMeterRegistry()
+		);
 
 		mockMvc = MockMvcBuilders
 			.standaloneSetup(
