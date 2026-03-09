@@ -85,12 +85,30 @@ public class CompilerService {
 		ScenarioService.LatestScenarioVersionSnapshot latestVersion = scenarioService.latestVersionSnapshot(
 			scenarioId
 		);
-		ScenarioService.ScenarioValidationSnapshot validation = validate(latestVersion);
+		return compileGraph(
+			latestVersion.scenarioId(),
+			latestVersion.versionId(),
+			latestVersion.versionNumber(),
+			latestVersion.graph()
+		);
+	}
+
+	public CompiledBundle compileGraph(
+		UUID scenarioId,
+		UUID versionId,
+		int versionNumber,
+		Map<String, Object> graph
+	) {
+		ScenarioService.ScenarioValidationSnapshot validation = validate(
+			scenarioId,
+			versionId,
+			versionNumber,
+			graph
+		);
 		if (!validation.valid()) {
 			throw new CompilerValidationException(validation);
 		}
 
-		Map<String, Object> graph = latestVersion.graph();
 		List<String> orderedNodeIds = orderedNodeIds(graph);
 		Map<String, Map<String, Object>> nodesById = nodesById(graph);
 		Map<String, List<String>> edgesBySource = edgesBySource(graph);
@@ -105,9 +123,9 @@ public class CompilerService {
 		Map<String, Object> artifact = new LinkedHashMap<>(artifactWithoutHash);
 		artifact.put("bundle_hash", bundleHash);
 		return new CompiledBundle(
-			latestVersion.scenarioId(),
-			latestVersion.versionId(),
-			latestVersion.versionNumber(),
+			scenarioId,
+			versionId,
+			versionNumber,
 			bundleHash,
 			artifact
 		);
@@ -118,13 +136,16 @@ public class CompilerService {
 	}
 
 	private ScenarioService.ScenarioValidationSnapshot validate(
-		ScenarioService.LatestScenarioVersionSnapshot latestVersion
+		UUID scenarioId,
+		UUID versionId,
+		int versionNumber,
+		Map<String, Object> graph
 	) {
-		ValidationResult result = graphValidator.validate(latestVersion.graph());
+		ValidationResult result = graphValidator.validate(graph);
 		return new ScenarioService.ScenarioValidationSnapshot(
-			latestVersion.scenarioId(),
-			latestVersion.versionId(),
-			latestVersion.versionNumber(),
+			scenarioId,
+			versionId,
+			versionNumber,
 			result.valid(),
 			result.errors(),
 			result.warnings()

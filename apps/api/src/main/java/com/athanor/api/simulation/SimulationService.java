@@ -17,6 +17,7 @@ public class SimulationService {
 	private static final int DEFAULT_RUN_COUNT = 25;
 	private static final long DEFAULT_SEED_START = 1L;
 	private static final int DEFAULT_MAX_STEPS = 10_000;
+	private static final int MAX_RUN_COUNT = 5_000;
 
 	private final CompilerService compilerService;
 	private final ObjectMapper objectMapper;
@@ -38,10 +39,25 @@ public class SimulationService {
 		SimulationRequest request,
 		SimulationProgressListener progressListener
 	) {
-		SimulationRequest normalizedRequest = normalizeRequest(request);
 		CompilerService.CompiledBundle compiledBundle = compilerService.compileScenarioBundle(
 			scenarioId
 		);
+		return simulateCompiledBundle(compiledBundle, request, progressListener);
+	}
+
+	public SimulationSummary simulateCompiledBundle(
+		CompilerService.CompiledBundle compiledBundle,
+		SimulationRequest request
+	) {
+		return simulateCompiledBundle(compiledBundle, request, null);
+	}
+
+	public SimulationSummary simulateCompiledBundle(
+		CompilerService.CompiledBundle compiledBundle,
+		SimulationRequest request,
+		SimulationProgressListener progressListener
+	) {
+		SimulationRequest normalizedRequest = normalizeRequest(request);
 		RuntimeBundle bundle = toRuntimeBundle(compiledBundle.payload());
 
 		List<SimulationRun> runs = new ArrayList<>();
@@ -97,8 +113,10 @@ public class SimulationService {
 		int maxSteps = value.maxSteps() == null ? DEFAULT_MAX_STEPS : value.maxSteps();
 		boolean trace = value.trace() == null ? true : value.trace();
 
-		if (runCount < 1 || runCount > 250) {
-			throw new IllegalArgumentException("runCount must be between 1 and 250");
+		if (runCount < 1 || runCount > MAX_RUN_COUNT) {
+			throw new IllegalArgumentException(
+				"runCount must be between 1 and " + MAX_RUN_COUNT
+			);
 		}
 		if (seedStart < 0) {
 			throw new IllegalArgumentException("seedStart must be zero or greater");

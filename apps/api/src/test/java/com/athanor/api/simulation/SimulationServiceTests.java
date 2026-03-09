@@ -198,7 +198,7 @@ class SimulationServiceTests {
 			IllegalArgumentException.class,
 			() -> fixture.simulationService().simulateLatestScenario(
 				java.util.UUID.fromString(scenarioId),
-				new SimulationService.SimulationRequest(300, 1L, 100, true)
+				new SimulationService.SimulationRequest(6_000, 1L, 100, true)
 			)
 		);
 		assertThrows(
