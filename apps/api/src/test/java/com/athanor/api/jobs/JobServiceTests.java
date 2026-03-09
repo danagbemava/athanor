@@ -8,6 +8,8 @@ import com.athanor.api.compiler.FilesystemBundleStore;
 import com.athanor.api.scenario.ScenarioGraphValidator;
 import com.athanor.api.scenario.ScenarioService;
 import com.athanor.api.simulation.SimulationService;
+import com.athanor.api.telemetry.ScenarioAnalyticsSnapshot;
+import com.athanor.api.telemetry.TelemetryService;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -48,6 +50,12 @@ class JobServiceTests {
 		assertEquals(1, completed.attempts());
 		assertEquals(6, completed.summary().runCount());
 		assertTrue(completed.summary().outcomeCounts().containsKey("approved"));
+		ScenarioAnalyticsSnapshot analytics = fixture.telemetryService().scenarioAnalytics(
+			scenarioId
+		);
+		assertEquals(1, analytics.batchCount());
+		assertEquals(6L, analytics.runCount());
+		assertTrue(analytics.outcomeCounts().containsKey("approved"));
 	}
 
 	@Test
@@ -110,8 +118,13 @@ class JobServiceTests {
 			objectMapper
 		);
 		SimulationService simulationService = new SimulationService(compilerService, objectMapper);
-		JobService jobService = new JobService(simulationService, new SimpleMeterRegistry());
-		return new TestFixture(scenarioService, jobService);
+		TelemetryService telemetryService = new TelemetryService();
+		JobService jobService = new JobService(
+			simulationService,
+			telemetryService,
+			new SimpleMeterRegistry()
+		);
+		return new TestFixture(scenarioService, jobService, telemetryService);
 	}
 
 	private Map<String, Object> validGraph() {
@@ -148,7 +161,11 @@ class JobServiceTests {
 		);
 	}
 
-	private record TestFixture(ScenarioService scenarioService, JobService jobService) {
+	private record TestFixture(
+		ScenarioService scenarioService,
+		JobService jobService,
+		TelemetryService telemetryService
+	) {
 		private UUID createScenario(Map<String, Object> graph) {
 			return scenarioService
 				.createScenario(new ScenarioService.CreateScenarioCommand("Queued", "", graph))

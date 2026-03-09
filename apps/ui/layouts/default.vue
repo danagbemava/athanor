@@ -54,9 +54,9 @@ const pageMeta = computed(() => {
     if (exact?.to === "/analytics") {
         return {
             eyebrow: "Analytics",
-            title: "Validation Analytics",
+            title: "Simulation Analytics",
             description:
-                "Quality trend, recent runs, and issue concentration across the portfolio.",
+                "Telemetry-backed outcomes, step distribution, and sampled traces for the active scenario.",
         };
     }
 

@@ -156,6 +156,7 @@ class ScenarioControllerTests {
             .andExpect(jsonPath("$.error").exists());
     }
 
+
     private Map<String, Object> createRequest(Map<String, Object> graph) {
         return Map.of(
             "name",

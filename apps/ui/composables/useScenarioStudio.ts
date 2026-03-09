@@ -118,6 +118,32 @@ export type SimulationJobSnapshot = {
   summary?: SimulationSnapshot | null;
 };
 
+export type ScenarioAnalyticsTraceSample = {
+  seed: number;
+  outcome: string;
+  stepsTaken: number;
+  trace: SimulationTraceEvent[];
+  recordedAt: string;
+};
+
+export type ScenarioAnalyticsSnapshot = {
+  scenarioId: string;
+  latestVersionId?: string | null;
+  latestVersionNumber?: number | null;
+  latestBundleHash?: string | null;
+  agentVersion?: string | null;
+  batchCount: number;
+  runCount: number;
+  averageSteps: number;
+  p90Steps: number;
+  outcomeCounts: Record<string, number>;
+  nodeVisitCounts: Record<string, number>;
+  traceSampleRate: number;
+  sampledTraceCount: number;
+  sampledTraces: ScenarioAnalyticsTraceSample[];
+  lastCompletedAt?: string | null;
+};
+
 export type NodeType = "DecisionNode" | "ChanceNode" | "TerminalNode";
 
 export type DecisionOptionDraft = {
@@ -288,6 +314,27 @@ export function useScenarioStudio() {
     "studio:simulation-job",
     () => null,
   );
+  const analyticsResponse = useState<ScenarioAnalyticsSnapshot | null>(
+    "studio:analytics-response",
+    () => null,
+  );
+  const analyticsWatchersInitialized = useState<boolean>(
+    "studio:analytics-watchers-initialized",
+    () => false,
+  );
+  const analyticsRequestKey = useState<string>(
+    "studio:analytics-request-key",
+    () => "",
+  );
+  const analyticsLoadedKey = useState<string>(
+    "studio:analytics-loaded-key",
+    () => "",
+  );
+  const isLoadingAnalytics = useState<boolean>(
+    "studio:is-loading-analytics",
+    () => false,
+  );
+  const analyticsError = useState<string>("studio:analytics-error", () => "");
   const activeSimulationRunId = useState<string>(
     "studio:active-simulation-run-id",
     () => "",
@@ -1215,6 +1262,7 @@ export function useScenarioStudio() {
 
       if (job.status === "completed" && job.summary) {
         simulationResponse.value = job.summary;
+        await fetchScenarioAnalytics(job.summary.scenarioId, { force: true });
         statusNote.value = `Completed ${job.summary.runCount} simulation runs`;
         pushActivity(
           "Simulation Completed",
@@ -1251,6 +1299,61 @@ export function useScenarioStudio() {
     activeSimulationRunId.value = "";
   }
 
+  async function fetchScenarioAnalytics(
+    targetScenarioId = scenarioId.value,
+    options: { force?: boolean } = {},
+  ) {
+    const normalizedScenarioId = targetScenarioId.trim();
+    if (!normalizedScenarioId) {
+      analyticsResponse.value = null;
+      analyticsError.value = "";
+      analyticsRequestKey.value = "";
+      analyticsLoadedKey.value = "";
+      return;
+    }
+
+    const requestKey = normalizedScenarioId;
+    if (
+      !options.force &&
+      analyticsLoadedKey.value === requestKey &&
+      analyticsResponse.value &&
+      !analyticsError.value
+    ) {
+      return analyticsResponse.value;
+    }
+    if (isLoadingAnalytics.value && analyticsRequestKey.value === requestKey) {
+      return analyticsResponse.value;
+    }
+
+    isLoadingAnalytics.value = true;
+    analyticsError.value = "";
+    analyticsRequestKey.value = requestKey;
+
+    try {
+      const response = await fetch(
+        `${apiBaseUrl.value}/scenarios/${normalizedScenarioId}/analytics`,
+      );
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(String(payload?.error || "Analytics request failed."));
+      }
+
+      analyticsResponse.value = payload as ScenarioAnalyticsSnapshot;
+      analyticsLoadedKey.value = requestKey;
+      return analyticsResponse.value;
+    } catch (error) {
+      analyticsResponse.value = null;
+      analyticsLoadedKey.value = "";
+      analyticsError.value =
+        error instanceof Error ? error.message : "Analytics request failed.";
+    } finally {
+      if (analyticsRequestKey.value === requestKey) {
+        analyticsRequestKey.value = "";
+        isLoadingAnalytics.value = false;
+      }
+    }
+  }
+
   function simulationStatusTone(status: string): BadgeTone {
     const normalized = status.toLowerCase();
     if (normalized === "completed") {
@@ -1265,16 +1368,28 @@ export function useScenarioStudio() {
     return "outline";
   }
 
-  watch(scenarioId, () => {
-    resetSimulationState();
-  });
+  if (!analyticsWatchersInitialized.value) {
+    analyticsWatchersInitialized.value = true;
 
-  watch(
-    () => scenarioResponse.value?.version.id,
-    () => {
-      resetSimulationState();
-    },
-  );
+    watch(
+      scenarioId,
+      (value) => {
+        resetSimulationState();
+        analyticsLoadedKey.value = "";
+        void fetchScenarioAnalytics(value);
+      },
+      { immediate: true },
+    );
+
+    watch(
+      () => scenarioResponse.value?.version.id,
+      () => {
+        resetSimulationState();
+        analyticsLoadedKey.value = "";
+        void fetchScenarioAnalytics();
+      },
+    );
+  }
 
   return {
     apiBaseUrl,
@@ -1298,6 +1413,9 @@ export function useScenarioStudio() {
     validationResponse,
     simulationResponse,
     simulationJob,
+    analyticsResponse,
+    isLoadingAnalytics,
+    analyticsError,
     activeSimulationRunId,
     scenarioHistory,
     validationHistory,
@@ -1342,5 +1460,6 @@ export function useScenarioStudio() {
     saveNewVersion,
     validateScenario,
     runSimulation,
+    fetchScenarioAnalytics,
   };
 }

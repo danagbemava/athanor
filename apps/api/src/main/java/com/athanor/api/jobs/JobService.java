@@ -1,6 +1,7 @@
 package com.athanor.api.jobs;
 
 import com.athanor.api.simulation.SimulationService;
+import com.athanor.api.telemetry.TelemetryService;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -20,6 +21,7 @@ public class JobService implements DisposableBean {
 	private static final int MAX_ATTEMPTS = 4;
 
 	private final SimulationService simulationService;
+	private final TelemetryService telemetryService;
 	private final ExecutorService executor;
 	private final ConcurrentMap<UUID, SimulationJob> jobs = new ConcurrentHashMap<>();
 	private final AtomicInteger pendingJobs = new AtomicInteger();
@@ -27,8 +29,13 @@ public class JobService implements DisposableBean {
 	private final AtomicInteger deadLetterJobs = new AtomicInteger();
 	private final int workerCount;
 
-	public JobService(SimulationService simulationService, MeterRegistry meterRegistry) {
+	public JobService(
+		SimulationService simulationService,
+		TelemetryService telemetryService,
+		MeterRegistry meterRegistry
+	) {
 		this.simulationService = simulationService;
+		this.telemetryService = telemetryService;
 		this.workerCount = Math.max(2, Runtime.getRuntime().availableProcessors() / 2);
 		this.executor =
 			Executors.newFixedThreadPool(workerCount, new SimulationWorkerThreadFactory());
@@ -99,6 +106,7 @@ public class JobService implements DisposableBean {
 				job::recordProgress
 			);
 			job.markCompleted(summary);
+			recordTelemetry(summary);
 		} catch (RuntimeException exception) {
 			if (job.markForRetry(exception, MAX_ATTEMPTS)) {
 				pendingJobs.incrementAndGet();
@@ -114,6 +122,18 @@ public class JobService implements DisposableBean {
 			}
 		} finally {
 			runningJobs.decrementAndGet();
+		}
+	}
+
+	private void recordTelemetry(SimulationService.SimulationSummary summary) {
+		try {
+			telemetryService.recordSimulationSummary(summary);
+		} catch (RuntimeException exception) {
+			log.warn(
+				"telemetry ingest failed for simulation job scenario {}: {}",
+				summary.scenarioId(),
+				exception.getMessage()
+			);
 		}
 	}
 

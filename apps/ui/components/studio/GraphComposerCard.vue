@@ -94,6 +94,7 @@ type ScenarioFlowNodeData = {
 };
 
 const canvasRef = ref<HTMLElement | null>(null);
+const fileInputRef = ref<HTMLInputElement | null>(null);
 const previousBodyOverflow = ref("");
 const rawNodeId = ref("");
 const rawImportError = ref("");
@@ -355,10 +356,39 @@ async function importFromClipboard() {
     try {
         const text = await navigator.clipboard.readText();
         importGraphFromJson(text);
+        quickAddMenu.value = null;
         await fitFlowToGraph();
     } catch (error) {
         rawImportError.value =
             error instanceof Error ? error.message : "Clipboard import failed.";
+    }
+}
+
+function openJsonFilePicker() {
+    rawImportError.value = "";
+    fileInputRef.value?.click();
+}
+
+async function importFromFile(event: Event) {
+    rawImportError.value = "";
+    const input = event.target as HTMLInputElement | null;
+    const file = input?.files?.[0];
+    if (!file) {
+        return;
+    }
+
+    try {
+        const text = await file.text();
+        importGraphFromJson(text);
+        quickAddMenu.value = null;
+        await fitFlowToGraph();
+    } catch (error) {
+        rawImportError.value =
+            error instanceof Error ? error.message : "File import failed.";
+    } finally {
+        if (input) {
+            input.value = "";
+        }
     }
 }
 
@@ -467,6 +497,13 @@ onBeforeUnmount(() => {
                         </CardDescription>
                     </div>
                     <div class="flex flex-wrap items-center gap-2">
+                        <input
+                            ref="fileInputRef"
+                            accept="application/json,.json"
+                            class="hidden"
+                            type="file"
+                            @change="importFromFile"
+                        />
                         <Badge
                             :variant="
                                 hasUnsavedChanges ? 'secondary' : 'outline'
@@ -516,8 +553,11 @@ onBeforeUnmount(() => {
                         >
                             <Redo2 class="mr-2 size-4" /> Redo
                         </Button>
+                        <Button size="sm" variant="outline" @click="openJsonFilePicker">
+                            <Upload class="mr-2 size-4" /> Import File
+                        </Button>
                         <Button size="sm" variant="outline" @click="importFromClipboard">
-                            <Upload class="mr-2 size-4" /> Import JSON
+                            <Upload class="mr-2 size-4" /> Paste JSON
                         </Button>
                         <Button size="sm" variant="outline" @click="saveDraftLocally">
                             <Download class="mr-2 size-4" /> Save Draft
