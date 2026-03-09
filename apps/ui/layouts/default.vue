@@ -65,7 +65,7 @@ const pageMeta = computed(() => {
             eyebrow: "Composer",
             title: "Scenario Composer",
             description:
-                "Author graphs, validate drafts, and run synchronous simulation workflows.",
+                "Author graphs, validate drafts, and run async simulation workflows.",
         };
     }
 

@@ -10,14 +10,16 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const {
     isSimulating,
+    simulationJob,
+    simulationProgress,
     simulationResponse,
     simulationRunCount,
     formatTimestamp,
     formatPayload,
+    simulationStatusTone,
 } = useScenarioStudio();
 
 const sortedOutcomes = computed(() => {
@@ -25,8 +27,10 @@ const sortedOutcomes = computed(() => {
     return Object.entries(counts).sort((left, right) => right[1] - left[1]);
 });
 
+const tracePageSize = 8;
 const selectedRunSeed = ref<string>("");
 const selectedStepIndex = ref(0);
+const selectedRunPage = ref(0);
 
 const traceableRuns = computed(() => {
     return simulationResponse.value?.runs ?? [];
@@ -42,6 +46,25 @@ const selectedRun = computed(() => {
         runs.find((run) => String(run.seed) === selectedRunSeed.value) ?? runs[0]
     );
 });
+const traceRunPageCount = computed(() =>
+    Math.max(1, Math.ceil(traceableRuns.value.length / tracePageSize)),
+);
+const paginatedTraceableRuns = computed(() => {
+    const start = selectedRunPage.value * tracePageSize;
+    return traceableRuns.value.slice(start, start + tracePageSize);
+});
+const paginatedTraceRunLabel = computed(() => {
+    if (traceableRuns.value.length === 0) {
+        return "0-0";
+    }
+
+    const start = selectedRunPage.value * tracePageSize + 1;
+    const end = Math.min(
+        traceableRuns.value.length,
+        (selectedRunPage.value + 1) * tracePageSize,
+    );
+    return `${start}-${end}`;
+});
 
 const selectedTrace = computed(() => selectedRun.value?.trace ?? []);
 const selectedTraceStep = computed(() => {
@@ -54,18 +77,48 @@ const selectedTraceStep = computed(() => {
     );
     return selectedTrace.value[index] ?? null;
 });
+const selectedTraceStatusLabel = computed(() => {
+    const step = selectedTraceStep.value;
+    if (!step) {
+        return "No trace available";
+    }
+
+    if (step.outcome) {
+        return step.outcome;
+    }
+
+    const run = selectedRun.value;
+    if (!run) {
+        return "completed-step";
+    }
+
+    const isTerminalStep = selectedStepIndex.value >= selectedTrace.value.length - 1;
+    if (isTerminalStep) {
+        return run.outcome;
+    }
+
+    return "completed-step";
+});
 
 watch(
     traceableRuns,
     (runs) => {
         selectedRunSeed.value = runs[0] ? String(runs[0].seed) : "";
+        selectedRunPage.value = 0;
         selectedStepIndex.value = 0;
     },
     { immediate: true },
 );
 
-watch(selectedRunSeed, () => {
+watch(selectedRunSeed, (nextSeed) => {
     selectedStepIndex.value = 0;
+
+    const selectedIndex = traceableRuns.value.findIndex(
+        (run) => String(run.seed) === nextSeed,
+    );
+    if (selectedIndex >= 0) {
+        selectedRunPage.value = Math.floor(selectedIndex / tracePageSize);
+    }
 });
 
 function nextTraceStep() {
@@ -82,6 +135,17 @@ function previousTraceStep() {
     selectedStepIndex.value = Math.max(selectedStepIndex.value - 1, 0);
 }
 
+function nextTraceRunPage() {
+    selectedRunPage.value = Math.min(
+        selectedRunPage.value + 1,
+        traceRunPageCount.value - 1,
+    );
+}
+
+function previousTraceRunPage() {
+    selectedRunPage.value = Math.max(selectedRunPage.value - 1, 0);
+}
+
 function selectedTraceLabel() {
     const step = selectedTraceStep.value;
     if (!step) {
@@ -96,21 +160,46 @@ function selectedTraceLabel() {
         <CardHeader>
             <CardTitle class="text-lg">Simulation Snapshot</CardTitle>
             <CardDescription>
-                Synchronous runs against the latest compiled version of the active
-                scenario.
+                Async runs against the latest compiled version of the active
+                scenario, with live queue and progress updates.
             </CardDescription>
         </CardHeader>
         <CardContent v-if="isSimulating" class="space-y-4">
             <div class="grid gap-3 md:grid-cols-4">
-                <div
-                    v-for="label in ['Runs', 'Avg Steps', 'Agent', 'Completed']"
-                    :key="label"
-                    class="rounded-lg border border-border/70 bg-muted/20 p-3"
-                >
+                <div class="rounded-lg border border-border/70 bg-muted/20 p-3">
                     <p class="text-xs uppercase tracking-wide text-muted-foreground">
-                        {{ label }}
+                        Run ID
                     </p>
-                    <div class="mt-2 h-8 animate-pulse rounded-md bg-muted/80" />
+                    <p class="mt-2 text-sm font-semibold">
+                        {{ simulationJob?.runId?.slice(0, 12) ?? "pending" }}
+                    </p>
+                </div>
+                <div class="rounded-lg border border-border/70 bg-muted/20 p-3">
+                    <p class="text-xs uppercase tracking-wide text-muted-foreground">
+                        Status
+                    </p>
+                    <div class="mt-2">
+                        <Badge :variant="simulationStatusTone(simulationJob?.status ?? 'queued')">
+                            {{ simulationJob?.status ?? "queued" }}
+                        </Badge>
+                    </div>
+                </div>
+                <div class="rounded-lg border border-border/70 bg-muted/20 p-3">
+                    <p class="text-xs uppercase tracking-wide text-muted-foreground">
+                        Progress
+                    </p>
+                    <p class="mt-2 text-2xl font-semibold">
+                        {{ simulationProgress }}%
+                    </p>
+                </div>
+                <div class="rounded-lg border border-border/70 bg-muted/20 p-3">
+                    <p class="text-xs uppercase tracking-wide text-muted-foreground">
+                        Runs
+                    </p>
+                    <p class="mt-2 text-sm font-medium">
+                        {{ simulationJob?.completedRuns ?? 0 }} /
+                        {{ simulationJob?.totalRuns ?? simulationRunCount }}
+                    </p>
                 </div>
             </div>
 
@@ -118,7 +207,25 @@ function selectedTraceLabel() {
                 <div class="space-y-3 rounded-lg border border-border/70 bg-muted/20 p-4">
                     <div class="flex items-center justify-between gap-2">
                         <h3 class="text-sm font-semibold">Outcome Distribution</h3>
-                        <Badge variant="outline">pending</Badge>
+                        <Badge :variant="simulationStatusTone(simulationJob?.status ?? 'queued')">
+                            {{ simulationJob?.completedRuns ?? 0 }}/{{ simulationJob?.totalRuns ?? simulationRunCount }}
+                        </Badge>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between gap-3 text-sm">
+                            <span class="font-medium text-muted-foreground">
+                                Batch completion
+                            </span>
+                            <span class="text-muted-foreground">
+                                {{ simulationProgress }}%
+                            </span>
+                        </div>
+                        <div class="h-2 rounded-full bg-muted">
+                            <div
+                                class="h-2 rounded-full bg-primary transition-all"
+                                :style="{ width: `${simulationProgress}%` }"
+                            />
+                        </div>
                     </div>
                     <div class="space-y-2">
                         <div
@@ -138,8 +245,14 @@ function selectedTraceLabel() {
                 <div class="space-y-3 rounded-lg border border-border/70 bg-muted/20 p-4">
                     <div class="flex items-center justify-between gap-2">
                         <h3 class="text-sm font-semibold">Trace Explorer</h3>
-                        <Badge variant="secondary">{{ simulationRunCount }} queued</Badge>
+                        <Badge variant="secondary">
+                            attempt {{ simulationJob?.attempts ?? 0 }}
+                        </Badge>
                     </div>
+                    <p class="text-sm text-muted-foreground">
+                        Traces will populate once the worker completes the queued
+                        simulation batch.
+                    </p>
                     <div class="space-y-2">
                         <div
                             v-for="index in 3"
@@ -235,37 +348,76 @@ function selectedTraceLabel() {
                         </Badge>
                     </div>
 
-                    <Tabs
-                        v-if="traceableRuns.length"
-                        v-model="selectedRunSeed"
-                        class="space-y-4"
+                    <div
+                        v-if="traceableRuns.length && selectedRun"
+                        class="min-w-0 space-y-4"
                     >
-                        <TabsList class="h-auto w-full justify-start gap-1 overflow-x-auto p-1">
-                            <TabsTrigger
-                                v-for="run in traceableRuns.slice(0, 8)"
-                                :key="run.seed"
-                                :value="String(run.seed)"
-                                class="min-w-24"
-                            >
-                                Seed {{ run.seed }}
-                            </TabsTrigger>
-                        </TabsList>
-
-                        <TabsContent
-                            v-for="run in traceableRuns.slice(0, 8)"
-                            :key="`run-${run.seed}`"
-                            :value="String(run.seed)"
-                            class="space-y-4"
+                        <div
+                            class="min-w-0 space-y-3 rounded-lg border border-border/70 bg-background/70 p-3"
                         >
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <p class="text-sm font-semibold">
+                                    Seeds {{ paginatedTraceRunLabel }} of
+                                    {{ traceableRuns.length }}
+                                </p>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        :disabled="selectedRunPage === 0"
+                                        @click="previousTraceRunPage"
+                                    >
+                                        <ChevronLeft class="mr-1 size-4" />
+                                        Prev
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        :disabled="
+                                            selectedRunPage >= traceRunPageCount - 1
+                                        "
+                                        @click="nextTraceRunPage"
+                                    >
+                                        Next
+                                        <ChevronRight class="ml-1 size-4" />
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div class="flex gap-2 overflow-x-auto pb-1">
+                                <button
+                                    v-for="run in paginatedTraceableRuns"
+                                    :key="run.seed"
+                                    type="button"
+                                    class="min-w-32 shrink-0 rounded-lg border px-3 py-2 text-left transition-colors sm:min-w-44"
+                                    :class="
+                                        String(run.seed) === selectedRunSeed
+                                            ? 'border-primary bg-primary/10'
+                                            : 'border-border/70 bg-background hover:bg-muted/50'
+                                    "
+                                    @click="selectedRunSeed = String(run.seed)"
+                                >
+                                    <p class="text-sm font-semibold">Seed {{ run.seed }}</p>
+                                    <p class="mt-1 text-xs text-muted-foreground">
+                                        {{ run.outcome }}
+                                    </p>
+                                    <p class="text-xs text-muted-foreground">
+                                        {{ run.stepsTaken }} steps
+                                    </p>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="min-w-0 space-y-4">
                             <div
                                 class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/70 bg-background/70 p-3"
                             >
                                 <div class="space-y-1">
                                     <p class="text-sm font-semibold">
-                                        Seed {{ run.seed }} · {{ run.outcome }}
+                                        Seed {{ selectedRun.seed }} · {{ selectedRun.outcome }}
                                     </p>
                                     <p class="text-sm text-muted-foreground">
-                                        {{ run.stepsTaken }} steps executed
+                                        {{ selectedRun.stepsTaken }} steps executed
                                     </p>
                                 </div>
                                 <div class="flex items-center gap-2">
@@ -294,9 +446,9 @@ function selectedTraceLabel() {
 
                             <div
                                 v-if="selectedTraceStep"
-                                class="grid gap-4 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]"
+                                class="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]"
                             >
-                                <div class="space-y-3 rounded-lg border border-border/70 bg-background/70 p-4">
+                                <div class="min-w-0 space-y-3 rounded-lg border border-border/70 bg-background/70 p-4">
                                     <div class="flex items-center justify-between gap-3">
                                         <div>
                                             <p class="text-sm font-semibold">
@@ -307,7 +459,7 @@ function selectedTraceLabel() {
                                             </p>
                                         </div>
                                         <Badge variant="outline">
-                                            {{ selectedTraceStep.outcome || "in-flight" }}
+                                            {{ selectedTraceStatusLabel }}
                                         </Badge>
                                     </div>
 
@@ -418,7 +570,7 @@ function selectedTraceLabel() {
                                     </div>
                                 </div>
 
-                                <div class="space-y-3">
+                                <div class="min-w-0 space-y-3">
                                     <div
                                         class="rounded-lg border border-border/70 bg-background/70 p-4"
                                     >
@@ -444,11 +596,11 @@ function selectedTraceLabel() {
                             </div>
 
                             <div
-                                class="grid gap-2 md:grid-cols-2 xl:grid-cols-3"
+                                class="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-3"
                             >
                                 <button
-                                    v-for="(event, index) in run.trace"
-                                    :key="`${run.seed}-${index}-${event.nodeId}`"
+                                    v-for="(event, index) in selectedRun.trace"
+                                    :key="`${selectedRun.seed}-${index}-${event.nodeId}`"
                                     type="button"
                                     class="rounded-lg border border-border/70 bg-background/70 px-3 py-2 text-left transition hover:border-sky-400/50"
                                     :class="
@@ -474,15 +626,15 @@ function selectedTraceLabel() {
                                     </p>
                                 </button>
                             </div>
-                        </TabsContent>
-                    </Tabs>
+                        </div>
+                    </div>
                 </div>
             </div>
         </CardContent>
         <CardContent v-else>
             <p class="text-sm text-muted-foreground">
                 No simulation runs yet. Create or select a scenario, then run the
-                synchronous simulation action from Composer Actions.
+                async simulation action from Composer Actions.
             </p>
         </CardContent>
     </Card>
