@@ -7,5 +7,6 @@ const dashboardPagePath = path.resolve(process.cwd(), 'pages/dashboard.vue')
 
 test('dashboard shell exists with heading', async () => {
   const contents = await readFile(dashboardPagePath, 'utf8')
-  assert.match(contents, /Athanor Scenario Studio/)
+  assert.match(contents, /Product Dashboard/)
+  assert.match(contents, /Traditional operations view for the scenario portfolio/)
 })
