@@ -55,13 +55,26 @@ public class CompilerService {
 	}
 
 	public CompilationResult compileLatestScenario(UUID scenarioId) {
-		CompiledBundle bundle = compileScenarioBundle(scenarioId);
+		ScenarioService.LatestScenarioVersionSnapshot latestVersion = scenarioService.latestVersionSnapshot(
+			scenarioId
+		);
+		CompiledBundle bundle = compileGraph(
+			latestVersion.scenarioId(),
+			latestVersion.versionId(),
+			latestVersion.versionNumber(),
+			latestVersion.graph()
+		);
+		Instant now = Instant.now();
 		BundleMetadata metadata = new BundleMetadata(
 			bundle.bundleHash(),
 			bundle.scenarioId(),
 			bundle.versionId(),
 			bundle.versionNumber(),
-			java.time.Instant.now()
+			now,
+			BundleRetentionClass.fromScenarioState(latestVersion.state()),
+			now,
+			1,
+			COMPILER_VERSION
 		);
 		BundleStore.StoreResult storeResult = store(metadata, canonicalJson(bundle.payload()));
 
@@ -129,12 +142,15 @@ public class CompilerService {
 	}
 
 	public BundleMetadata bundleMetadata(String bundleHash) {
-		return storedBundle(bundleHash).metadata();
+		try {
+			return bundleStore.readMetadata(bundleHash);
+		} catch (IOException exception) {
+			throw new IllegalStateException("failed to read compiled bundle metadata", exception);
+		}
 	}
 
 	public byte[] bundleContent(String bundleHash) {
 		try {
-			storedBundle(bundleHash);
 			return bundleStore.readContent(bundleHash);
 		} catch (IOException exception) {
 			throw new IllegalStateException("failed to read compiled bundle", exception);
@@ -142,7 +158,11 @@ public class CompilerService {
 	}
 
 	public Path bundleContentPath(String bundleHash) {
-		return storedBundle(bundleHash).contentPath();
+		Path path = storedBundle(bundleHash).contentPath();
+		if (path == null) {
+			throw new IllegalStateException("bundle content path is not available for this store");
+		}
+		return path;
 	}
 
 	private ScenarioService.ScenarioValidationSnapshot validate(

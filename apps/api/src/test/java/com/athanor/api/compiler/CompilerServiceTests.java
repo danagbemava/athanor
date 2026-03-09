@@ -2,8 +2,8 @@ package com.athanor.api.compiler;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.athanor.api.scenario.ScenarioGraphValidator;
@@ -111,8 +111,24 @@ class CompilerServiceTests {
 		assertEquals(created.scenarioId(), metadata.scenarioId());
 		assertEquals(first.versionId(), metadata.versionId());
 		assertEquals(first.versionNumber(), metadata.versionNumber());
+		assertEquals(BundleRetentionClass.DRAFT, metadata.retentionClass());
+		assertEquals(1, metadata.referenceCount());
+		assertEquals("0.0.1-SNAPSHOT", metadata.compilerVersion());
 		assertEquals(first.bundleHash(), bundleContent.get("bundle_hash"));
 		assertEquals(tempDir.resolve(first.bundleHash() + ".json"), reloaded.bundleContentPath(first.bundleHash()));
+	}
+
+	@Test
+	void bundleMetadataReadsUpdateLastAccessedAt() throws Exception {
+		ScenarioService.ScenarioSnapshot created = scenarioService.createScenario(
+			new ScenarioService.CreateScenarioCommand("Scenario", null, validGraph())
+		);
+
+		CompilerService.CompilationResult result = compilerService.compileLatestScenario(created.scenarioId());
+		BundleMetadata firstRead = compilerService.bundleMetadata(result.bundleHash());
+		BundleMetadata secondRead = compilerService.bundleMetadata(result.bundleHash());
+
+		assertTrue(!secondRead.lastAccessedAt().isBefore(firstRead.lastAccessedAt()));
 	}
 
 	@Test

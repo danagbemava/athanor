@@ -7,6 +7,10 @@ public record BundleMetadata(
 	String bundleHash,
 	UUID scenarioId,
 	UUID versionId,
-	int versionNumber,
-	Instant storedAt
+	Integer versionNumber,
+	Instant storedAt,
+	BundleRetentionClass retentionClass,
+	Instant lastAccessedAt,
+	int referenceCount,
+	String compilerVersion
 ) {}

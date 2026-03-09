@@ -112,7 +112,11 @@ class CompilerControllerTests {
 			.andExpect(jsonPath("$.bundleHash").value(bundleHash))
 			.andExpect(jsonPath("$.scenarioId").value(scenarioId.toString()))
 			.andExpect(jsonPath("$.versionNumber").value(1))
-			.andExpect(jsonPath("$.storedAt").isNotEmpty());
+			.andExpect(jsonPath("$.storedAt").isNotEmpty())
+			.andExpect(jsonPath("$.retentionClass").value("draft"))
+			.andExpect(jsonPath("$.lastAccessedAt").isNotEmpty())
+			.andExpect(jsonPath("$.referenceCount").value(1))
+			.andExpect(jsonPath("$.compilerVersion").value("0.0.1-SNAPSHOT"));
 
 		mockMvc
 			.perform(get("/bundles/{bundleHash}/content", bundleHash))
