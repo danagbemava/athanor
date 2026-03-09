@@ -10,6 +10,8 @@ public interface BundleStore {
 
 	Optional<StoredBundle> find(String bundleHash) throws IOException;
 
+	BundleMetadata readMetadata(String bundleHash) throws IOException;
+
 	byte[] readContent(String bundleHash) throws IOException;
 
 	record StoreResult(

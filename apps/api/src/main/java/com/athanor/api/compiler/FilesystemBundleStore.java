@@ -4,21 +4,15 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.time.Instant;
 import java.util.Optional;
-import java.util.regex.Pattern;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
-@Component
 public class FilesystemBundleStore implements BundleStore {
-
-	private static final Pattern BUNDLE_HASH_PATTERN = Pattern.compile("^[a-f0-9]{64}$");
 
 	private final Path rootDirectory;
 	private final ObjectMapper objectMapper;
 
-	@Autowired
 	public FilesystemBundleStore(ObjectMapper objectMapper) {
 		this(Path.of("build", "athanor", "bundles"), objectMapper);
 	}
@@ -47,7 +41,19 @@ public class FilesystemBundleStore implements BundleStore {
 
 		BundleMetadata persistedMetadata = metadata;
 		if (Files.exists(metadataPath)) {
-			persistedMetadata = readMetadata(metadataPath);
+			BundleMetadata existing = readMetadata(metadataPath);
+			persistedMetadata = new BundleMetadata(
+				existing.bundleHash(),
+				existing.scenarioId(),
+				existing.versionId(),
+				existing.versionNumber(),
+				existing.storedAt(),
+				BundleRetentionClass.strongest(existing.retentionClass(), metadata.retentionClass()),
+				Instant.now(),
+				existing.referenceCount() + 1,
+				existing.compilerVersion()
+			);
+			writeMetadata(metadataPath, persistedMetadata, true);
 		} else {
 			writeMetadata(metadataPath, metadata);
 		}
@@ -66,8 +72,36 @@ public class FilesystemBundleStore implements BundleStore {
 	}
 
 	@Override
+	public BundleMetadata readMetadata(String bundleHash) throws IOException {
+		Path metadataPath = metadataPath(bundleHash);
+		if (!Files.exists(metadataPath)) {
+			throw new BundleNotFoundException("bundleHash not found");
+		}
+		BundleMetadata metadata = readMetadata(metadataPath);
+		BundleMetadata updated = new BundleMetadata(
+			metadata.bundleHash(),
+			metadata.scenarioId(),
+			metadata.versionId(),
+			metadata.versionNumber(),
+			metadata.storedAt(),
+			metadata.retentionClass(),
+			Instant.now(),
+			metadata.referenceCount(),
+			metadata.compilerVersion()
+		);
+		writeMetadata(metadataPath, updated, true);
+		return updated;
+	}
+
+	@Override
 	public byte[] readContent(String bundleHash) throws IOException {
-		return Files.readAllBytes(contentPath(bundleHash));
+		Path bundlePath = contentPath(bundleHash);
+		if (!Files.exists(bundlePath)) {
+			throw new BundleNotFoundException("bundleHash not found");
+		}
+		byte[] content = Files.readAllBytes(bundlePath);
+		readMetadata(bundleHash);
+		return content;
 	}
 
 	private Path contentPath(String bundleHash) {
@@ -79,7 +113,7 @@ public class FilesystemBundleStore implements BundleStore {
 	}
 
 	private Path resolveBundlePath(String bundleHash, String suffix) {
-		String normalizedHash = normalizeBundleHash(bundleHash);
+		String normalizedHash = BundleHashs.requireValid(bundleHash);
 		Path resolved = rootDirectory.resolve(normalizedHash + suffix).normalize();
 		if (!resolved.startsWith(rootDirectory)) {
 			throw new IllegalArgumentException("invalid bundle hash");
@@ -87,18 +121,17 @@ public class FilesystemBundleStore implements BundleStore {
 		return resolved;
 	}
 
-	private String normalizeBundleHash(String bundleHash) {
-		if (bundleHash == null || !BUNDLE_HASH_PATTERN.matcher(bundleHash).matches()) {
-			throw new IllegalArgumentException("invalid bundle hash");
-		}
-		return bundleHash;
+	private void writeMetadata(Path metadataPath, BundleMetadata metadata) throws IOException {
+		writeMetadata(metadataPath, metadata, false);
 	}
 
-	private void writeMetadata(Path metadataPath, BundleMetadata metadata) throws IOException {
+	private void writeMetadata(Path metadataPath, BundleMetadata metadata, boolean overwrite)
+		throws IOException {
 		Files.writeString(
 			metadataPath,
 			objectMapper.writeValueAsString(metadata),
-			StandardOpenOption.CREATE_NEW,
+			overwrite ? StandardOpenOption.TRUNCATE_EXISTING : StandardOpenOption.CREATE_NEW,
+			StandardOpenOption.CREATE,
 			StandardOpenOption.WRITE
 		);
 	}
