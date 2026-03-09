@@ -32,9 +32,9 @@ function openScenario(scenarioId: string) {
 <template>
     <Card class="border-border bg-card shadow-sm">
         <CardHeader>
-            <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <CardTitle class="text-2xl">Scenario Portfolio</CardTitle>
+                    <CardTitle class="text-xl">Scenario Portfolio</CardTitle>
                     <CardDescription
                         >Track ownership, risk, release status, and run quality
                         by scenario.</CardDescription

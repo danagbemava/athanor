@@ -55,39 +55,18 @@ public class CompilerService {
 	}
 
 	public CompilationResult compileLatestScenario(UUID scenarioId) {
-		ScenarioService.LatestScenarioVersionSnapshot latestVersion = scenarioService.latestVersionSnapshot(
-			scenarioId
+		CompiledBundle bundle = compileScenarioBundle(scenarioId);
+		BundleStore.StoreResult storeResult = store(
+			bundle.bundleHash(),
+			canonicalJson(bundle.payload())
 		);
-		ScenarioService.ScenarioValidationSnapshot validation = validate(latestVersion);
-		if (!validation.valid()) {
-			throw new CompilerValidationException(validation);
-		}
-
-		Map<String, Object> graph = latestVersion.graph();
-		List<String> orderedNodeIds = orderedNodeIds(graph);
-		Map<String, Map<String, Object>> nodesById = nodesById(graph);
-		Map<String, List<String>> edgesBySource = edgesBySource(graph);
-
-		Map<String, Object> artifactWithoutHash = new LinkedHashMap<>();
-		artifactWithoutHash.put("entry_node_id", readString(graph, "entry_node_id", "entryNodeId"));
-		artifactWithoutHash.put("header", bundleHeader());
-		artifactWithoutHash.put("initial_state", readObject(graph, "initial_state", "initialState"));
-		artifactWithoutHash.put("nodes", compileNodes(orderedNodeIds, nodesById, edgesBySource));
-		artifactWithoutHash.values().removeIf(value -> value == null);
-
-		String bundleHash = sha256Hex(canonicalJson(artifactWithoutHash));
-		Map<String, Object> artifact = new LinkedHashMap<>(artifactWithoutHash);
-		artifact.put("bundle_hash", bundleHash);
-
-		byte[] persistedBytes = canonicalJson(artifact);
-		BundleStore.StoreResult storeResult = store(bundleHash, persistedBytes);
 		BundleRegistryEntry entry = registry.computeIfAbsent(
-			bundleHash,
+			bundle.bundleHash(),
 			ignored -> new BundleRegistryEntry(
-				bundleHash,
-				latestVersion.scenarioId(),
-				latestVersion.versionId(),
-				latestVersion.versionNumber(),
+				bundle.bundleHash(),
+				bundle.scenarioId(),
+				bundle.versionId(),
+				bundle.versionNumber(),
 				"draft",
 				storeResult.storedAt()
 			)
@@ -102,7 +81,7 @@ public class CompilerService {
 		);
 	}
 
-	Map<String, Object> compiledBundlePayload(UUID scenarioId) {
+	public CompiledBundle compileScenarioBundle(UUID scenarioId) {
 		ScenarioService.LatestScenarioVersionSnapshot latestVersion = scenarioService.latestVersionSnapshot(
 			scenarioId
 		);
@@ -125,7 +104,17 @@ public class CompilerService {
 		String bundleHash = sha256Hex(canonicalJson(artifactWithoutHash));
 		Map<String, Object> artifact = new LinkedHashMap<>(artifactWithoutHash);
 		artifact.put("bundle_hash", bundleHash);
-		return artifact;
+		return new CompiledBundle(
+			latestVersion.scenarioId(),
+			latestVersion.versionId(),
+			latestVersion.versionNumber(),
+			bundleHash,
+			artifact
+		);
+	}
+
+	public Map<String, Object> compiledBundlePayload(UUID scenarioId) {
+		return compileScenarioBundle(scenarioId).payload();
 	}
 
 	private ScenarioService.ScenarioValidationSnapshot validate(
@@ -507,6 +496,14 @@ public class CompilerService {
 		int versionNumber,
 		String bundleHash,
 		Instant storedAt
+	) {}
+
+	public record CompiledBundle(
+		UUID scenarioId,
+		UUID versionId,
+		int versionNumber,
+		String bundleHash,
+		Map<String, Object> payload
 	) {}
 
 	record BundleRegistryEntry(

@@ -16,7 +16,7 @@ public class FilesystemBundleStore implements BundleStore {
 		this(Path.of("build", "athanor", "bundles"));
 	}
 
-	FilesystemBundleStore(Path rootDirectory) {
+	public FilesystemBundleStore(Path rootDirectory) {
 		this.rootDirectory = rootDirectory;
 	}
 

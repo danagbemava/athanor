@@ -23,15 +23,18 @@ const {
 
 <template>
     <section class="grid gap-4 xl:grid-cols-[1.45fr,1fr]">
-        <Card class="border-border bg-card shadow-sm">
-            <CardHeader>
-                <CardTitle class="text-2xl">Validation Analytics</CardTitle>
-                <CardDescription
-                    >Quality trend, run outcomes, and issue
-                    concentration.</CardDescription
-                >
-            </CardHeader>
-        </Card>
+        <div class="rounded-2xl border border-border bg-card px-6 py-5 shadow-sm">
+            <p class="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                Validation Signal
+            </p>
+            <h2 class="pt-2 text-2xl font-semibold tracking-tight">
+                Quality trend and recent execution history
+            </h2>
+            <p class="pt-1 text-sm text-muted-foreground">
+                Inspect portfolio pass rate, run history, and the latest
+                validation state from a standard analytics view.
+            </p>
+        </div>
 
         <Card class="border-border bg-card shadow-sm">
             <CardHeader>

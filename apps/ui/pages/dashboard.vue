@@ -39,25 +39,21 @@ const {
 
 <template>
     <section class="grid gap-4 xl:grid-cols-[1.45fr,1fr]">
-        <Card class="border-border bg-card shadow-sm">
-            <CardHeader>
-                <Badge
-                    variant="outline"
-                    class="w-fit px-3 py-1 text-[11px] uppercase tracking-[0.12em]"
-                >
-                    Product Dashboard
-                </Badge>
-                <CardTitle
-                    class="pt-2 text-balance text-3xl font-semibold md:text-4xl"
-                >
-                    Athanor Scenario Studio
-                </CardTitle>
-                <CardDescription class="max-w-3xl text-sm">
-                    Portfolio-level control for scenario lifecycle, validation
-                    quality, and operational execution.
-                </CardDescription>
-            </CardHeader>
-        </Card>
+        <div class="rounded-2xl border border-border bg-card px-6 py-5 shadow-sm">
+            <Badge
+                variant="outline"
+                class="w-fit px-3 py-1 text-[11px] uppercase tracking-[0.12em]"
+            >
+                Product Dashboard
+            </Badge>
+            <h2 class="pt-3 text-balance text-3xl font-semibold tracking-tight md:text-4xl">
+                Traditional operations view for the scenario portfolio
+            </h2>
+            <p class="max-w-3xl pt-2 text-sm text-muted-foreground">
+                Review portfolio health, validation quality, and recent activity
+                from a single working surface.
+            </p>
+        </div>
 
         <Card class="border-border bg-card shadow-sm">
             <CardHeader class="pb-2">
