@@ -8,6 +8,7 @@ import com.athanor.api.scenario.ScenarioGraphValidator;
 import com.athanor.api.scenario.ScenarioService;
 import com.athanor.api.simulation.LocalSimulationBatchExecutor;
 import com.athanor.api.simulation.SimulationService;
+import com.athanor.api.simulation.WorkerExecutionSummaryMapper;
 import com.athanor.api.telemetry.TelemetryService;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.nio.file.Path;

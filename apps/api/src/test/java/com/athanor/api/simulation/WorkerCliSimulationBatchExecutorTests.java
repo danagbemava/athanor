@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.athanor.api.compiler.CompilerService;
 import com.athanor.api.compiler.FilesystemBundleStore;
 import com.athanor.api.compiler.WorkerExecutionRequestFactory;
-import com.athanor.api.jobs.WorkerExecutionSummaryMapper;
 import com.athanor.api.scenario.ScenarioGraphValidator;
 import com.athanor.api.scenario.ScenarioService;
 import java.nio.file.Path;

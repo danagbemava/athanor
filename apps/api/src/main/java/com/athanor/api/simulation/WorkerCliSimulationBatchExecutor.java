@@ -5,7 +5,6 @@ import com.athanor.api.compiler.WorkerExecutionMode;
 import com.athanor.api.compiler.WorkerExecutionRequest;
 import com.athanor.api.compiler.WorkerExecutionRequestFactory;
 import com.athanor.api.compiler.WorkerExecutionResult;
-import com.athanor.api.jobs.WorkerExecutionSummaryMapper;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;

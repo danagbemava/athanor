@@ -4,6 +4,7 @@ import com.athanor.api.compiler.CompilerService;
 import com.athanor.api.compiler.WorkerExecutionResult;
 import com.athanor.api.simulation.SimulationService;
 import com.athanor.api.simulation.SimulationBatchExecutor;
+import com.athanor.api.simulation.WorkerExecutionSummaryMapper;
 import com.athanor.api.telemetry.TelemetryService;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.util.UUID;

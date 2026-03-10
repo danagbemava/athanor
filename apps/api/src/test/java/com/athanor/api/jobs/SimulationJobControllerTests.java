@@ -16,6 +16,7 @@ import com.athanor.api.simulation.SimulationBatchExecutor;
 import com.athanor.api.simulation.SimulationController;
 import com.athanor.api.simulation.SimulationExceptionHandler;
 import com.athanor.api.simulation.SimulationService;
+import com.athanor.api.simulation.WorkerExecutionSummaryMapper;
 import com.athanor.api.telemetry.TelemetryService;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.nio.file.Path;

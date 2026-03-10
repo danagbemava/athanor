@@ -1,7 +1,6 @@
-package com.athanor.api.jobs;
+package com.athanor.api.simulation;
 
 import com.athanor.api.compiler.WorkerExecutionResult;
-import com.athanor.api.simulation.SimulationService;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
