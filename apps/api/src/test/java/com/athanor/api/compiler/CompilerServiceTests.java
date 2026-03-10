@@ -78,11 +78,11 @@ class CompilerServiceTests {
 		assertEquals(List.of("start", "chance", "left", "right", "orphan"), nodeIds(nodes));
 
 		JsonNode json = objectMapper.valueToTree(payload);
-		assertEquals("decision", json.at("/nodes/0/type").asText());
-		assertEquals("chance", json.at("/nodes/1/type").asText());
-		assertEquals("terminal", json.at("/nodes/2/type").asText());
-		assertEquals("approved", json.at("/nodes/2/outcome").asText());
-		assertEquals("left", json.at("/nodes/1/chance_options/0/to").asText());
+		assertEquals("decision", json.at("/nodes/0/type").textValue());
+		assertEquals("chance", json.at("/nodes/1/type").textValue());
+		assertEquals("terminal", json.at("/nodes/2/type").textValue());
+		assertEquals("approved", json.at("/nodes/2/outcome").textValue());
+		assertEquals("left", json.at("/nodes/1/chance_options/0/to").textValue());
 		assertFalse(json.at("/nodes/0/decision_options").isMissingNode());
 	}
 

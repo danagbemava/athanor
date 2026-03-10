@@ -60,7 +60,7 @@ class ScenarioControllerTests {
         JsonNode body = objectMapper.readTree(
             result.getResponse().getContentAsByteArray()
         );
-        UUID scenarioId = UUID.fromString(body.get("scenarioId").asText());
+        UUID scenarioId = UUID.fromString(body.get("scenarioId").textValue());
 
         mockMvc
             .perform(post("/scenarios/{id}/validate", scenarioId))
@@ -87,7 +87,7 @@ class ScenarioControllerTests {
             objectMapper
                 .readTree(created.getResponse().getContentAsByteArray())
                 .get("scenarioId")
-                .asText()
+                .textValue()
         );
 
         Map<String, Object> updatedGraph = validGraph("entry", "finish");
@@ -138,7 +138,7 @@ class ScenarioControllerTests {
             objectMapper
                 .readTree(created.getResponse().getContentAsByteArray())
                 .get("scenarioId")
-                .asText()
+                .textValue()
         );
 
         mockMvc

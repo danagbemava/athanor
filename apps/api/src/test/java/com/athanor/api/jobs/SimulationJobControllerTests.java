@@ -103,7 +103,7 @@ class SimulationJobControllerTests {
 			.andReturn();
 
 		JsonNode submitted = objectMapper.readTree(resultBytes(submitResult));
-		String runId = submitted.get("runId").asText();
+		String runId = submitted.get("runId").textValue();
 
 		mockMvc
 			.perform(get("/runs/{runId}", runId))
@@ -162,7 +162,7 @@ class SimulationJobControllerTests {
 			.andReturn();
 
 		return UUID.fromString(
-			objectMapper.readTree(resultBytes(result)).get("scenarioId").asText()
+			objectMapper.readTree(resultBytes(result)).get("scenarioId").textValue()
 		);
 	}
 

@@ -11,6 +11,7 @@ import com.networknt.schema.JsonSchemaFactory;
 import com.networknt.schema.SpecVersion;
 import com.networknt.schema.ValidationMessage;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -77,12 +78,18 @@ class WorkerContractIntegrationTests {
 			requestPath.toAbsolutePath().toString()
 		)
 			.directory(Path.of("..", "worker").toFile())
-			.redirectErrorStream(true)
 			.start();
 
-		String output = new String(process.getInputStream().readAllBytes());
+		String output = new String(
+			process.getInputStream().readAllBytes(),
+			StandardCharsets.UTF_8
+		);
+		String errorOutput = new String(
+			process.getErrorStream().readAllBytes(),
+			StandardCharsets.UTF_8
+		);
 		int exitCode = process.waitFor();
-		assertEquals(0, exitCode, output);
+		assertEquals(0, exitCode, combinedOutput(output, errorOutput));
 
 		List<ValidationMessage> errors = workerExecutionResultSchema().validate(
 			output,
@@ -91,10 +98,19 @@ class WorkerContractIntegrationTests {
 		assertTrue(errors.isEmpty(), () -> "schema errors: " + errors + "\n" + output);
 
 		JsonNode result = objectMapper.readTree(output);
-		assertEquals(compilationResult.bundleHash(), result.get("bundle_hash").asText());
-		assertEquals("analytics", result.get("execution_mode").asText());
+		assertEquals(compilationResult.bundleHash(), result.get("bundle_hash").textValue());
+		assertEquals("analytics", result.get("execution_mode").textValue());
 		assertEquals(2, result.get("runs").size());
 		assertTrue(result.at("/runs/0/trace").isArray());
+	}
+
+	private String combinedOutput(String output, String errorOutput) {
+		String stdout = output == null ? "" : output.trim();
+		String stderr = errorOutput == null ? "" : errorOutput.trim();
+		if (!stdout.isBlank() && !stderr.isBlank()) {
+			return stdout + System.lineSeparator() + stderr;
+		}
+		return stdout.isBlank() ? stderr : stdout;
 	}
 
 	private java.util.UUID createScenario() {

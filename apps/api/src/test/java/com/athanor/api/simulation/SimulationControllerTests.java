@@ -174,7 +174,7 @@ class SimulationControllerTests {
 			.andReturn();
 
 		return UUID.fromString(
-			objectMapper.readTree(result.getResponse().getContentAsByteArray()).get("scenarioId").asText()
+			objectMapper.readTree(result.getResponse().getContentAsByteArray()).get("scenarioId").textValue()
 		);
 	}
 

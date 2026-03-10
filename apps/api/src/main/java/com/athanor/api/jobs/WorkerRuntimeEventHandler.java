@@ -33,7 +33,11 @@ public class WorkerRuntimeEventHandler {
 			);
 			case "failed" -> {
 				JsonNode payload = objectMapper.readTree(event.payloadJson());
-				jobService.failWorkerJob(event.runId(), payload.path("error").asText("worker runtime failed"));
+				String error = payload.path("error").textValue();
+				jobService.failWorkerJob(
+					event.runId(),
+					error == null || error.isBlank() ? "worker runtime failed" : error
+				);
 			}
 			default -> {}
 			}

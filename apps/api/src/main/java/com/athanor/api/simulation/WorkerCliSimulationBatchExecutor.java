@@ -6,6 +6,7 @@ import com.athanor.api.compiler.WorkerExecutionRequest;
 import com.athanor.api.compiler.WorkerExecutionRequestFactory;
 import com.athanor.api.compiler.WorkerExecutionResult;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -99,16 +100,31 @@ public class WorkerCliSimulationBatchExecutor implements SimulationBatchExecutor
 
 		Process process = new ProcessBuilder(command)
 			.directory(Path.of(properties.getWorkingDirectory()).toFile())
-			.redirectErrorStream(true)
 			.start();
-		String output = new String(process.getInputStream().readAllBytes());
+		String output = new String(
+			process.getInputStream().readAllBytes(),
+			StandardCharsets.UTF_8
+		);
+		String errorOutput = new String(
+			process.getErrorStream().readAllBytes(),
+			StandardCharsets.UTF_8
+		);
 		int exitCode = process.waitFor();
 		if (exitCode != 0) {
 			throw new IllegalStateException(
-				"worker batch execution failed: " + output.trim()
+				"worker batch execution failed: " + combinedOutput(output, errorOutput)
 			);
 		}
 		return objectMapper.readValue(output, WorkerExecutionResult.class);
+	}
+
+	private String combinedOutput(String output, String errorOutput) {
+		String stdout = output == null ? "" : output.trim();
+		String stderr = errorOutput == null ? "" : errorOutput.trim();
+		if (!stdout.isBlank() && !stderr.isBlank()) {
+			return stdout + System.lineSeparator() + stderr;
+		}
+		return stdout.isBlank() ? stderr : stdout;
 	}
 
 	private SimulationService.SimulationRequest normalize(

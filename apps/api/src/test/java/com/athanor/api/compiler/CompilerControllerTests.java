@@ -104,7 +104,7 @@ class CompilerControllerTests {
 		String bundleHash = objectMapper
 			.readTree(compileResult.getResponse().getContentAsByteArray())
 			.get("bundleHash")
-			.asText();
+			.textValue();
 
 		mockMvc
 			.perform(get("/bundles/{bundleHash}", bundleHash))
@@ -255,7 +255,7 @@ class CompilerControllerTests {
 			.andReturn();
 
 		return UUID.fromString(
-			objectMapper.readTree(result.getResponse().getContentAsByteArray()).get("scenarioId").asText()
+			objectMapper.readTree(result.getResponse().getContentAsByteArray()).get("scenarioId").textValue()
 		);
 	}
 
