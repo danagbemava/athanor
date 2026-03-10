@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import GraphComposerCard from "@/components/studio/GraphComposerCard.vue";
 import OptimizationResultsCard from "@/components/studio/OptimizationResultsCard.vue";
 import QuickActionsCard from "@/components/studio/QuickActionsCard.vue";
 import SimulationResultsCard from "@/components/studio/SimulationResultsCard.vue";
 
-const { optimizationJob, simulationResponse, simulationJob } = useScenarioStudio();
+const { optimizationJob, requestError, simulationResponse, simulationJob } = useScenarioStudio();
 
 const activeDetailPanel = ref<"simulation" | "optimization">("simulation");
 
@@ -33,6 +34,11 @@ const hasOptimizationDetail = computed(() => !!optimizationJob.value);
     </section>
 
     <section class="space-y-4">
+        <Alert v-if="requestError" variant="destructive">
+            <AlertTitle>Request error</AlertTitle>
+            <AlertDescription>{{ requestError }}</AlertDescription>
+        </Alert>
+
         <QuickActionsCard
             title="Composer Actions"
             description="Run create, version, and validate actions against the active graph model."

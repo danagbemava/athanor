@@ -16,6 +16,7 @@ import com.athanor.api.simulation.SimulationBatchExecutor;
 import com.athanor.api.simulation.SimulationController;
 import com.athanor.api.simulation.SimulationExceptionHandler;
 import com.athanor.api.simulation.SimulationService;
+import com.athanor.api.simulation.WorkerExecutionSummaryMapper;
 import com.athanor.api.telemetry.TelemetryService;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.nio.file.Path;
@@ -63,6 +64,8 @@ class SimulationJobControllerTests {
 			compilerService,
 			simulationService,
 			simulationBatchExecutor,
+			new NoopWorkerRuntimeDispatcher(),
+			new WorkerExecutionSummaryMapper(objectMapper),
 			telemetryService,
 			new SimpleMeterRegistry()
 		);
@@ -100,7 +103,7 @@ class SimulationJobControllerTests {
 			.andReturn();
 
 		JsonNode submitted = objectMapper.readTree(resultBytes(submitResult));
-		String runId = submitted.get("runId").asText();
+		String runId = submitted.get("runId").textValue();
 
 		mockMvc
 			.perform(get("/runs/{runId}", runId))
@@ -159,7 +162,7 @@ class SimulationJobControllerTests {
 			.andReturn();
 
 		return UUID.fromString(
-			objectMapper.readTree(resultBytes(result)).get("scenarioId").asText()
+			objectMapper.readTree(resultBytes(result)).get("scenarioId").textValue()
 		);
 	}
 

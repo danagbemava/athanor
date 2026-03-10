@@ -31,7 +31,9 @@ const {
     scenarioName,
     scenarioDescription,
     scenarioId,
+    simulationJob,
     simulationRunCount,
+    simulationProgress,
     graphValidationIssues,
     isSaving,
     isValidating,
@@ -53,12 +55,13 @@ const simulationAgents = computed(() => {
         ? Math.max(1, Math.trunc(simulationRunCount.value))
         : 1;
     const agentCount = Math.min(5, Math.max(3, Math.ceil(runCount / 8)));
+    const progress = Math.max(0, Math.min(100, simulationProgress.value));
 
     return Array.from({ length: agentCount }, (_, index) => ({
         id: `agent-${index}`,
-        duration: 1.8 + index * 0.35,
-        delay: index * 0.18,
         hue: index % 2 === 0 ? "bg-sky-400/90" : "bg-emerald-400/90",
+        left: `${Math.max(0, progress - index * 3)}%`,
+        opacity: progress > 0 ? Math.max(0.28, 1 - index * 0.16) : 0,
     }));
 });
 </script>
@@ -130,7 +133,7 @@ const simulationAgents = computed(() => {
                         v-model.number="simulationRunCount"
                         type="number"
                         min="1"
-                        max="250"
+                        max="5000"
                         class="max-w-32"
                     />
                 </div>
@@ -165,11 +168,20 @@ const simulationAgents = computed(() => {
                     <div
                         class="rounded-full border border-sky-400/20 bg-sky-500/10 px-2.5 py-1 text-xs text-sky-100"
                     >
-                        Results will appear automatically
+                        {{ simulationProgress }}% complete
                     </div>
                 </div>
 
                 <div class="mt-3 space-y-2">
+                    <div class="flex items-center justify-between gap-3 text-xs text-sky-100/80">
+                        <span>
+                            {{ simulationJob?.completedRuns ?? 0 }} /
+                            {{ simulationJob?.totalRuns ?? simulationRunCount }} runs
+                        </span>
+                        <span>
+                            Run {{ simulationJob?.runId?.slice(0, 8) ?? "pending" }}
+                        </span>
+                    </div>
                     <div
                         v-for="agent in simulationAgents"
                         :key="agent.id"
@@ -179,11 +191,15 @@ const simulationAgents = computed(() => {
                             class="absolute inset-y-1 left-2 right-2 rounded-full bg-[linear-gradient(90deg,rgba(56,189,248,0.06),rgba(56,189,248,0.14),rgba(16,185,129,0.08))]"
                         />
                         <div
-                            class="simulation-agent absolute top-1/2 size-3 -translate-y-1/2 rounded-full shadow-[0_0_18px_rgba(56,189,248,0.35)]"
+                            class="absolute inset-y-1 left-2 rounded-full bg-[linear-gradient(90deg,rgba(56,189,248,0.2),rgba(16,185,129,0.22))] transition-[width] duration-500 ease-out"
+                            :style="{ width: `calc((100% - 1rem) * ${simulationProgress} / 100)` }"
+                        />
+                        <div
+                            class="simulation-agent absolute top-1/2 size-3 -translate-y-1/2 rounded-full shadow-[0_0_18px_rgba(56,189,248,0.35)] transition-[left,opacity] duration-500 ease-out"
                             :class="agent.hue"
                             :style="{
-                                animationDuration: `${agent.duration}s`,
-                                animationDelay: `${agent.delay}s`,
+                                left: `calc(0.5rem + (100% - 1.6rem) * ${agent.left} / 100)`,
+                                opacity: agent.opacity,
                             }"
                         />
                     </div>
@@ -244,27 +260,18 @@ const simulationAgents = computed(() => {
 </template>
 
 <style scoped>
-@keyframes simulation-agent-lane {
-    0% {
-        transform: translate(0, -50%) scale(0.92);
-        opacity: 0.7;
+.simulation-agent {
+    animation: simulation-agent-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes simulation-agent-pulse {
+    0%,
+    100% {
+        transform: translateY(-50%) scale(0.92);
     }
 
     50% {
-        transform: translate(calc(100% - 2.5rem), -50%) scale(1);
-        opacity: 1;
+        transform: translateY(-50%) scale(1);
     }
-
-    100% {
-        transform: translate(0, -50%) scale(0.92);
-        opacity: 0.7;
-    }
-}
-
-.simulation-agent {
-    animation-name: simulation-agent-lane;
-    animation-timing-function: ease-in-out;
-    animation-iteration-count: infinite;
-    left: 0.6rem;
 }
 </style>

@@ -10,6 +10,7 @@ import com.athanor.api.scenario.ScenarioService;
 import com.athanor.api.simulation.LocalSimulationBatchExecutor;
 import com.athanor.api.simulation.SimulationBatchExecutor;
 import com.athanor.api.simulation.SimulationService;
+import com.athanor.api.simulation.WorkerExecutionSummaryMapper;
 import com.athanor.api.telemetry.ScenarioAnalyticsSnapshot;
 import com.athanor.api.telemetry.TelemetryService;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -131,6 +132,8 @@ class JobServiceTests {
 			compilerService,
 			simulationService,
 			simulationBatchExecutor,
+			new NoopWorkerRuntimeDispatcher(),
+			new WorkerExecutionSummaryMapper(objectMapper),
 			telemetryService,
 			new SimpleMeterRegistry()
 		);

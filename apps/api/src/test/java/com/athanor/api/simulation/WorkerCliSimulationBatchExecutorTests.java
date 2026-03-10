@@ -44,7 +44,8 @@ class WorkerCliSimulationBatchExecutorTests {
 			compilerService,
 			new WorkerExecutionRequestFactory(),
 			properties,
-			objectMapper
+			objectMapper,
+			new WorkerExecutionSummaryMapper(objectMapper)
 		);
 	}
 

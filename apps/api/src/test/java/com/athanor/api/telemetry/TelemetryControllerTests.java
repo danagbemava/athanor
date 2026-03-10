@@ -167,7 +167,7 @@ class TelemetryControllerTests {
 			objectMapper
 				.readTree(result.getResponse().getContentAsByteArray())
 				.get("scenarioId")
-				.asText()
+				.textValue()
 		);
 	}
 

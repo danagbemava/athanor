@@ -106,7 +106,7 @@ class OptimizationControllerTests {
 			.andExpect(jsonPath("$.status").value(anyOf(is("pending"), is("running"))))
 			.andReturn();
 
-		String jobId = objectMapper.readTree(resultBytes(submitResult)).get("jobId").asText();
+		String jobId = objectMapper.readTree(resultBytes(submitResult)).get("jobId").textValue();
 		JsonNode completedJob = waitForCompletedJob(jobId);
 
 		assertTrue(completedJob.get("bestScore").asDouble() < 0.05d);
@@ -148,12 +148,12 @@ class OptimizationControllerTests {
 				.andExpect(status().isOk())
 				.andReturn();
 			JsonNode job = objectMapper.readTree(resultBytes(result));
-			String status = job.get("status").asText();
+			String status = job.get("status").textValue();
 			if ("completed".equals(status)) {
 				return job;
 			}
 			if ("failed".equals(status)) {
-				throw new AssertionError(job.get("error").asText());
+				throw new AssertionError(job.get("error").textValue());
 			}
 			Thread.sleep(25L);
 		}
@@ -182,7 +182,7 @@ class OptimizationControllerTests {
 			.andReturn();
 
 		return UUID.fromString(
-			objectMapper.readTree(resultBytes(result)).get("scenarioId").asText()
+			objectMapper.readTree(resultBytes(result)).get("scenarioId").textValue()
 		);
 	}
 
