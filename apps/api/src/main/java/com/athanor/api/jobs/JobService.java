@@ -1,6 +1,7 @@
 package com.athanor.api.jobs;
 
 import com.athanor.api.compiler.CompilerService;
+import com.athanor.api.compiler.WorkerExecutionResult;
 import com.athanor.api.simulation.SimulationService;
 import com.athanor.api.simulation.SimulationBatchExecutor;
 import com.athanor.api.telemetry.TelemetryService;
@@ -25,6 +26,8 @@ public class JobService implements DisposableBean {
 	private final CompilerService compilerService;
 	private final SimulationService simulationService;
 	private final SimulationBatchExecutor simulationBatchExecutor;
+	private final WorkerRuntimeDispatcher workerRuntimeDispatcher;
+	private final WorkerExecutionSummaryMapper summaryMapper;
 	private final TelemetryService telemetryService;
 	private final ExecutorService executor;
 	private final ConcurrentMap<UUID, SimulationJob> jobs = new ConcurrentHashMap<>();
@@ -37,12 +40,16 @@ public class JobService implements DisposableBean {
 		CompilerService compilerService,
 		SimulationService simulationService,
 		SimulationBatchExecutor simulationBatchExecutor,
+		WorkerRuntimeDispatcher workerRuntimeDispatcher,
+		WorkerExecutionSummaryMapper summaryMapper,
 		TelemetryService telemetryService,
 		MeterRegistry meterRegistry
 	) {
 		this.compilerService = compilerService;
 		this.simulationService = simulationService;
 		this.simulationBatchExecutor = simulationBatchExecutor;
+		this.workerRuntimeDispatcher = workerRuntimeDispatcher;
+		this.summaryMapper = summaryMapper;
 		this.telemetryService = telemetryService;
 		this.workerCount = Math.max(2, Runtime.getRuntime().availableProcessors() / 2);
 		this.executor =
@@ -89,6 +96,47 @@ public class JobService implements DisposableBean {
 		return job.snapshot();
 	}
 
+	public void recordWorkerProgress(
+		UUID runId,
+		int completedRuns,
+		int totalRuns
+	) {
+		SimulationJob job = job(runId);
+		job.recordProgress(completedRuns, totalRuns, null);
+	}
+
+	public void completeWorkerJob(UUID runId, WorkerExecutionResult executionResult) {
+		SimulationJob job = job(runId);
+		SimulationService.SimulationSummary summary = summaryMapper.toSimulationSummary(
+			job.scenarioId(),
+			job.versionId(),
+			job.versionNumber(),
+			job.bundleHash(),
+			executionResult,
+			null
+		);
+		job.markCompleted(summary);
+		recordTelemetry(summary);
+		runningJobs.decrementAndGet();
+	}
+
+	public void failWorkerJob(UUID runId, String error) {
+		SimulationJob job = job(runId);
+		runningJobs.decrementAndGet();
+		if (job.markForRetry(new IllegalStateException(error), MAX_ATTEMPTS)) {
+			pendingJobs.incrementAndGet();
+			schedule(job);
+			return;
+		}
+		deadLetterJobs.incrementAndGet();
+		log.warn(
+			"simulation job {} moved to dead-letter queue after {} attempts: {}",
+			job.runId(),
+			job.attempts(),
+			error
+		);
+	}
+
 	@Override
 	public void destroy() {
 		executor.shutdownNow();
@@ -106,9 +154,16 @@ public class JobService implements DisposableBean {
 		pendingJobs.decrementAndGet();
 		runningJobs.incrementAndGet();
 		job.markRunning();
+		boolean remoteExecutionAccepted = false;
 
 		try {
 			var compiledBundle = compilerService.compileScenarioBundle(job.scenarioId());
+			job.attachCompiledBundle(compiledBundle);
+			if (workerRuntimeDispatcher.enabled()) {
+				workerRuntimeDispatcher.dispatchSimulationJob(job.runId(), compiledBundle, job.request());
+				remoteExecutionAccepted = true;
+				return;
+			}
 			SimulationService.SimulationSummary summary = simulationBatchExecutor.executeCompiledBundle(
 				compiledBundle,
 				job.request(),
@@ -130,8 +185,18 @@ public class JobService implements DisposableBean {
 				);
 			}
 		} finally {
-			runningJobs.decrementAndGet();
+			if (!remoteExecutionAccepted) {
+				runningJobs.decrementAndGet();
+			}
 		}
+	}
+
+	private SimulationJob job(UUID runId) {
+		SimulationJob job = jobs.get(runId);
+		if (job == null) {
+			throw new SimulationJobNotFoundException("runId not found");
+		}
+		return job;
 	}
 
 	private void recordTelemetry(SimulationService.SimulationSummary summary) {

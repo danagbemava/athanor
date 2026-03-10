@@ -63,6 +63,8 @@ class SimulationJobControllerTests {
 			compilerService,
 			simulationService,
 			simulationBatchExecutor,
+			new NoopWorkerRuntimeDispatcher(),
+			new WorkerExecutionSummaryMapper(objectMapper),
 			telemetryService,
 			new SimpleMeterRegistry()
 		);

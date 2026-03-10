@@ -6,19 +6,33 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/athanor/apps/worker/internal/agent"
 	"github.com/athanor/apps/worker/internal/contracts"
 	"github.com/athanor/apps/worker/internal/engine"
+	"github.com/athanor/apps/worker/internal/service"
 )
 
 func Run(args []string, stdout io.Writer, stderr io.Writer) int {
-	if len(args) == 0 || args[0] != "run" {
-		_, _ = fmt.Fprintln(stderr, "usage: worker run --bundle <path> --request <path>")
+	if len(args) == 0 {
+		_, _ = fmt.Fprintln(stderr, "usage: worker run --bundle <path> --request <path> | worker serve --redis-addr <host:port> [--cache-dir <path>]")
 		return 1
 	}
 
-	bundlePath, requestPath, err := parseRunArgs(args[1:])
+	switch args[0] {
+	case "run":
+		return runCommand(args[1:], stdout, stderr)
+	case "serve":
+		return serveCommand(args[1:], stderr)
+	default:
+		_, _ = fmt.Fprintln(stderr, "usage: worker run --bundle <path> --request <path> | worker serve --redis-addr <host:port> [--cache-dir <path>]")
+		return 1
+	}
+}
+
+func runCommand(args []string, stdout io.Writer, stderr io.Writer) int {
+	bundlePath, requestPath, err := parseRunArgs(args)
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, err.Error())
 		return 1
@@ -39,6 +53,19 @@ func Run(args []string, stdout io.Writer, stderr io.Writer) int {
 	encoder := json.NewEncoder(stdout)
 	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(result); err != nil {
+		_, _ = fmt.Fprintln(stderr, err.Error())
+		return 1
+	}
+	return 0
+}
+
+func serveCommand(args []string, stderr io.Writer) int {
+	config, err := parseServeArgs(args)
+	if err != nil {
+		_, _ = fmt.Fprintln(stderr, err.Error())
+		return 1
+	}
+	if err := service.Serve(config); err != nil {
 		_, _ = fmt.Fprintln(stderr, err.Error())
 		return 1
 	}
@@ -73,6 +100,58 @@ func parseRunArgs(args []string) (string, string, error) {
 	}
 
 	return bundlePath, requestPath, nil
+}
+
+func parseServeArgs(args []string) (service.RedisConfig, error) {
+	config := service.RedisConfig{
+		Address:             os.Getenv("ATHANOR_REDIS_ADDR"),
+		DispatchStream:      envOrDefault("ATHANOR_WORKER_DISPATCH_STREAM", "athanor.worker.dispatch"),
+		DispatchConsumerGrp: envOrDefault("ATHANOR_WORKER_DISPATCH_GROUP", "athanor-worker"),
+		DispatchConsumer:    envOrDefault("ATHANOR_WORKER_DISPATCH_CONSUMER", "worker-1"),
+		EventStream:         envOrDefault("ATHANOR_WORKER_EVENT_STREAM", "athanor.worker.events"),
+		CacheDir:            ".worker-cache",
+		ObjectStore: service.ObjectStoreConfig{
+			Endpoint:  envOrDefault("ATHANOR_S3_ENDPOINT", "127.0.0.1:9000"),
+			Region:    envOrDefault("ATHANOR_S3_REGION", "us-east-1"),
+			Bucket:    envOrDefault("ATHANOR_S3_BUCKET", "athanor-bundles"),
+			AccessKey: envOrDefault("ATHANOR_S3_ACCESS_KEY", "minioadmin"),
+			SecretKey: envOrDefault("ATHANOR_S3_SECRET_KEY", "minioadmin"),
+			UseSSL:    strings.HasPrefix(envOrDefault("ATHANOR_S3_ENDPOINT", ""), "https://"),
+		},
+	}
+
+	for index := 0; index < len(args); index++ {
+		switch args[index] {
+		case "--redis-addr":
+			index++
+			if index >= len(args) {
+				return service.RedisConfig{}, errors.New("--redis-addr requires an address")
+			}
+			config.Address = args[index]
+		case "--cache-dir":
+			index++
+			if index >= len(args) {
+				return service.RedisConfig{}, errors.New("--cache-dir requires a path")
+			}
+			config.CacheDir = args[index]
+		default:
+			return service.RedisConfig{}, fmt.Errorf("unknown argument: %s", args[index])
+		}
+	}
+
+	if config.Address == "" {
+		return service.RedisConfig{}, errors.New("usage: worker serve --redis-addr <host:port> [--cache-dir <path>]")
+	}
+
+	return config, nil
+}
+
+func envOrDefault(key string, fallback string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+	return value
 }
 
 func loadInputs(bundlePath string, requestPath string) (engine.Bundle, contracts.ExecutionRequest, error) {

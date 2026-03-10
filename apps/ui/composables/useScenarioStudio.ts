@@ -194,6 +194,8 @@ export type OptimizationJobSnapshot = {
 
 export type NodeType = "DecisionNode" | "ChanceNode" | "TerminalNode";
 
+const MAX_SIMULATION_RUN_COUNT = 5000;
+
 export type DecisionOptionDraft = {
   to: string;
   guardVar: string;
@@ -1287,6 +1289,19 @@ export function useScenarioStudio() {
     simulationJob.value = null;
     activeSimulationRunId.value = "";
     statusNote.value = "Queueing simulation batch...";
+    const normalizedRunCount = Number.isFinite(simulationRunCount.value)
+      ? Math.max(1, Math.trunc(simulationRunCount.value))
+      : 25;
+    simulationRunCount.value = normalizedRunCount;
+
+    if (normalizedRunCount > MAX_SIMULATION_RUN_COUNT) {
+      const message = `runCount must be between 1 and ${MAX_SIMULATION_RUN_COUNT}`;
+      requestError.value = message;
+      statusNote.value = "Simulation request failed";
+      pushActivity("Simulation Failed", message, "destructive");
+      isSimulating.value = false;
+      throw new Error(message);
+    }
 
     try {
       const response = await fetch(`${apiBaseUrl.value}/simulate`, {
@@ -1294,9 +1309,7 @@ export function useScenarioStudio() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           scenarioId: scenarioId.value,
-          runCount: Number.isFinite(simulationRunCount.value)
-            ? Math.max(1, Math.trunc(simulationRunCount.value))
-            : 25,
+          runCount: normalizedRunCount,
           trace: true,
         }),
       });

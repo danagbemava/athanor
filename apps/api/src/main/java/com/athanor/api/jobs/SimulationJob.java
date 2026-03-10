@@ -1,7 +1,9 @@
 package com.athanor.api.jobs;
 
+import com.athanor.api.compiler.CompilerService;
 import com.athanor.api.simulation.SimulationService;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 
 final class SimulationJob {
@@ -20,6 +22,9 @@ final class SimulationJob {
 	private volatile Instant startedAt;
 	private volatile Instant completedAt;
 	private volatile SimulationService.SimulationSummary summary;
+	private volatile UUID versionId;
+	private volatile Integer versionNumber;
+	private volatile String bundleHash;
 
 	SimulationJob(UUID runId, UUID scenarioId, SimulationService.SimulationRequest request) {
 		this.runId = runId;
@@ -72,6 +77,13 @@ final class SimulationJob {
 		this.completedRuns = Math.min(completedRuns, totalRuns);
 	}
 
+	synchronized void attachCompiledBundle(CompilerService.CompiledBundle compiledBundle) {
+		Objects.requireNonNull(compiledBundle, "compiledBundle is required");
+		this.versionId = compiledBundle.versionId();
+		this.versionNumber = compiledBundle.versionNumber();
+		this.bundleHash = compiledBundle.bundleHash();
+	}
+
 	synchronized void markCompleted(SimulationService.SimulationSummary summary) {
 		this.summary = summary;
 		this.completedRuns = totalRuns;
@@ -97,7 +109,6 @@ final class SimulationJob {
 		double progressPercent = totalRuns == 0
 			? 0d
 			: ((double) completedRuns / (double) totalRuns) * 100d;
-		String bundleHash = summary == null ? null : summary.bundleHash();
 		return new SimulationJobSnapshot(
 			runId,
 			"simulation_batch",
@@ -119,5 +130,17 @@ final class SimulationJob {
 
 	int attempts() {
 		return attempts;
+	}
+
+	UUID versionId() {
+		return versionId;
+	}
+
+	Integer versionNumber() {
+		return versionNumber;
+	}
+
+	String bundleHash() {
+		return bundleHash;
 	}
 }

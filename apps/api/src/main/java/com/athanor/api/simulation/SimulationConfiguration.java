@@ -4,5 +4,5 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@EnableConfigurationProperties(WorkerCliProperties.class)
+@EnableConfigurationProperties({ WorkerCliProperties.class, WorkerRuntimeProperties.class })
 public class SimulationConfiguration {}
