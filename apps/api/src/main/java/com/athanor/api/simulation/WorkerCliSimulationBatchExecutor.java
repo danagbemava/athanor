@@ -67,7 +67,6 @@ public class WorkerCliSimulationBatchExecutor implements SimulationBatchExecutor
 			WorkerExecutionResult executionResult = runWorker(bundlePath, requestPath);
 			return toSimulationSummary(
 				compiledBundle,
-				normalizedRequest,
 				executionResult,
 				progressListener
 			);
@@ -112,7 +111,6 @@ public class WorkerCliSimulationBatchExecutor implements SimulationBatchExecutor
 
 	private SimulationService.SimulationSummary toSimulationSummary(
 		CompilerService.CompiledBundle compiledBundle,
-		SimulationService.SimulationRequest request,
 		WorkerExecutionResult executionResult,
 		SimulationService.SimulationProgressListener progressListener
 	) {
