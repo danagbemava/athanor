@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
@@ -21,10 +22,21 @@ public class SimulationService {
 
 	private final CompilerService compilerService;
 	private final ObjectMapper objectMapper;
+	private final SimulationBatchExecutor simulationBatchExecutor;
 
 	public SimulationService(CompilerService compilerService, ObjectMapper objectMapper) {
+		this(compilerService, objectMapper, null);
+	}
+
+	@Autowired
+	public SimulationService(
+		CompilerService compilerService,
+		ObjectMapper objectMapper,
+		SimulationBatchExecutor simulationBatchExecutor
+	) {
 		this.compilerService = compilerService;
 		this.objectMapper = objectMapper;
+		this.simulationBatchExecutor = simulationBatchExecutor;
 	}
 
 	public SimulationSummary simulateLatestScenario(
@@ -58,6 +70,25 @@ public class SimulationService {
 		SimulationProgressListener progressListener
 	) {
 		SimulationRequest normalizedRequest = normalizeRequest(request);
+		if (simulationBatchExecutor != null) {
+			return simulationBatchExecutor.executeCompiledBundle(
+				compiledBundle,
+				normalizedRequest,
+				progressListener
+			);
+		}
+		return simulateCompiledBundleLocally(
+			compiledBundle,
+			normalizedRequest,
+			progressListener
+		);
+	}
+
+	private SimulationSummary simulateCompiledBundleLocally(
+		CompilerService.CompiledBundle compiledBundle,
+		SimulationRequest normalizedRequest,
+		SimulationProgressListener progressListener
+	) {
 		RuntimeBundle bundle = toRuntimeBundle(compiledBundle.payload());
 
 		List<SimulationRun> runs = new ArrayList<>();

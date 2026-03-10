@@ -87,6 +87,50 @@ class CompilerServiceTests {
 	}
 
 	@Test
+	void compileScenarioBundleAlsoPersistsBundleForWorkerExecution() throws Exception {
+		ScenarioService.ScenarioSnapshot created = scenarioService.createScenario(
+			new ScenarioService.CreateScenarioCommand("Scenario", null, validGraph())
+		);
+
+		CompilerService.CompiledBundle bundle = compilerService.compileScenarioBundle(
+			created.scenarioId()
+		);
+
+		BundleMetadata metadata = compilerService.bundleMetadata(bundle.bundleHash());
+		Map<String, Object> bundleContent = objectMapper.readValue(
+			compilerService.bundleContent(bundle.bundleHash()),
+			Map.class
+		);
+
+		assertEquals(created.scenarioId(), metadata.scenarioId());
+		assertEquals(bundle.bundleHash(), bundleContent.get("bundle_hash"));
+	}
+
+	@Test
+	void storeCompiledBundlePersistsArbitraryGraphBundleForWorkerExecution() throws Exception {
+		ScenarioService.ScenarioSnapshot created = scenarioService.createScenario(
+			new ScenarioService.CreateScenarioCommand("Scenario", null, validGraph())
+		);
+		CompilerService.CompiledBundle bundle = compilerService.compileGraph(
+			created.scenarioId(),
+			created.version().id(),
+			created.version().number(),
+			validGraph()
+		);
+
+		compilerService.storeCompiledBundle(bundle, BundleRetentionClass.ORPHAN);
+
+		BundleMetadata metadata = compilerService.bundleMetadata(bundle.bundleHash());
+		Map<String, Object> bundleContent = objectMapper.readValue(
+			compilerService.bundleContent(bundle.bundleHash()),
+			Map.class
+		);
+
+		assertEquals(BundleRetentionClass.ORPHAN, metadata.retentionClass());
+		assertEquals(bundle.bundleHash(), bundleContent.get("bundle_hash"));
+	}
+
+	@Test
 	void storedBundleMetadataSurvivesCompilerServiceRecreation() throws Exception {
 		ScenarioService.ScenarioSnapshot created = scenarioService.createScenario(
 			new ScenarioService.CreateScenarioCommand("Scenario", null, validGraph())

@@ -11,6 +11,8 @@ import com.athanor.api.scenario.ScenarioController;
 import com.athanor.api.scenario.ScenarioExceptionHandler;
 import com.athanor.api.scenario.ScenarioGraphValidator;
 import com.athanor.api.scenario.ScenarioService;
+import com.athanor.api.simulation.LocalSimulationBatchExecutor;
+import com.athanor.api.simulation.SimulationBatchExecutor;
 import com.athanor.api.simulation.SimulationController;
 import com.athanor.api.simulation.SimulationExceptionHandler;
 import com.athanor.api.simulation.SimulationService;
@@ -53,9 +55,14 @@ class SimulationJobControllerTests {
 			objectMapper
 		);
 		SimulationService simulationService = new SimulationService(compilerService, objectMapper);
+		SimulationBatchExecutor simulationBatchExecutor = new LocalSimulationBatchExecutor(
+			simulationService
+		);
 		TelemetryService telemetryService = new TelemetryService();
 		JobService jobService = new JobService(
+			compilerService,
 			simulationService,
+			simulationBatchExecutor,
 			telemetryService,
 			new SimpleMeterRegistry()
 		);

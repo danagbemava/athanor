@@ -1,6 +1,8 @@
 package com.athanor.api.jobs;
 
+import com.athanor.api.compiler.CompilerService;
 import com.athanor.api.simulation.SimulationService;
+import com.athanor.api.simulation.SimulationBatchExecutor;
 import com.athanor.api.telemetry.TelemetryService;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.util.UUID;
@@ -20,7 +22,9 @@ public class JobService implements DisposableBean {
 	private static final Logger log = LoggerFactory.getLogger(JobService.class);
 	private static final int MAX_ATTEMPTS = 4;
 
+	private final CompilerService compilerService;
 	private final SimulationService simulationService;
+	private final SimulationBatchExecutor simulationBatchExecutor;
 	private final TelemetryService telemetryService;
 	private final ExecutorService executor;
 	private final ConcurrentMap<UUID, SimulationJob> jobs = new ConcurrentHashMap<>();
@@ -30,11 +34,15 @@ public class JobService implements DisposableBean {
 	private final int workerCount;
 
 	public JobService(
+		CompilerService compilerService,
 		SimulationService simulationService,
+		SimulationBatchExecutor simulationBatchExecutor,
 		TelemetryService telemetryService,
 		MeterRegistry meterRegistry
 	) {
+		this.compilerService = compilerService;
 		this.simulationService = simulationService;
+		this.simulationBatchExecutor = simulationBatchExecutor;
 		this.telemetryService = telemetryService;
 		this.workerCount = Math.max(2, Runtime.getRuntime().availableProcessors() / 2);
 		this.executor =
@@ -100,8 +108,9 @@ public class JobService implements DisposableBean {
 		job.markRunning();
 
 		try {
-			SimulationService.SimulationSummary summary = simulationService.simulateLatestScenario(
-				job.scenarioId(),
+			var compiledBundle = compilerService.compileScenarioBundle(job.scenarioId());
+			SimulationService.SimulationSummary summary = simulationBatchExecutor.executeCompiledBundle(
+				compiledBundle,
 				job.request(),
 				job::recordProgress
 			);
