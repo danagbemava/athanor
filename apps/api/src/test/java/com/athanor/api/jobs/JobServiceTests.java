@@ -7,6 +7,8 @@ import com.athanor.api.compiler.CompilerService;
 import com.athanor.api.compiler.FilesystemBundleStore;
 import com.athanor.api.scenario.ScenarioGraphValidator;
 import com.athanor.api.scenario.ScenarioService;
+import com.athanor.api.simulation.LocalSimulationBatchExecutor;
+import com.athanor.api.simulation.SimulationBatchExecutor;
 import com.athanor.api.simulation.SimulationService;
 import com.athanor.api.telemetry.ScenarioAnalyticsSnapshot;
 import com.athanor.api.telemetry.TelemetryService;
@@ -121,9 +123,14 @@ class JobServiceTests {
 			objectMapper
 		);
 		SimulationService simulationService = new SimulationService(compilerService, objectMapper);
+		SimulationBatchExecutor simulationBatchExecutor = new LocalSimulationBatchExecutor(
+			simulationService
+		);
 		TelemetryService telemetryService = new TelemetryService();
 		JobService jobService = new JobService(
+			compilerService,
 			simulationService,
+			simulationBatchExecutor,
 			telemetryService,
 			new SimpleMeterRegistry()
 		);

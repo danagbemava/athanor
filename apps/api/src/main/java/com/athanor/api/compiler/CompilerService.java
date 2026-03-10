@@ -64,19 +64,10 @@ public class CompilerService {
 			latestVersion.versionNumber(),
 			latestVersion.graph()
 		);
-		Instant now = Instant.now();
-		BundleMetadata metadata = new BundleMetadata(
-			bundle.bundleHash(),
-			bundle.scenarioId(),
-			bundle.versionId(),
-			bundle.versionNumber(),
-			now,
-			BundleRetentionClass.fromScenarioState(latestVersion.state()),
-			now,
-			1,
-			COMPILER_VERSION
+		BundleStore.StoreResult storeResult = storeCompiledBundle(
+			bundle,
+			BundleRetentionClass.fromScenarioState(latestVersion.state())
 		);
-		BundleStore.StoreResult storeResult = store(metadata, canonicalJson(bundle.payload()));
 
 		return new CompilationResult(
 			storeResult.metadata().scenarioId(),
@@ -91,11 +82,37 @@ public class CompilerService {
 		ScenarioService.LatestScenarioVersionSnapshot latestVersion = scenarioService.latestVersionSnapshot(
 			scenarioId
 		);
-		return compileGraph(
+		CompiledBundle bundle = compileGraph(
 			latestVersion.scenarioId(),
 			latestVersion.versionId(),
 			latestVersion.versionNumber(),
 			latestVersion.graph()
+		);
+		storeCompiledBundle(
+			bundle,
+			BundleRetentionClass.fromScenarioState(latestVersion.state())
+		);
+		return bundle;
+	}
+
+	public BundleStore.StoreResult storeCompiledBundle(
+		CompiledBundle bundle,
+		BundleRetentionClass retentionClass
+	) {
+		Instant now = Instant.now();
+		return store(
+			new BundleMetadata(
+				bundle.bundleHash(),
+				bundle.scenarioId(),
+				bundle.versionId(),
+				bundle.versionNumber(),
+				now,
+				retentionClass,
+				now,
+				1,
+				COMPILER_VERSION
+			),
+			canonicalJson(bundle.payload())
 		);
 	}
 

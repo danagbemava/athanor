@@ -14,7 +14,9 @@ import com.athanor.api.scenario.ScenarioController;
 import com.athanor.api.scenario.ScenarioExceptionHandler;
 import com.athanor.api.scenario.ScenarioGraphValidator;
 import com.athanor.api.scenario.ScenarioService;
+import com.athanor.api.simulation.LocalSimulationBatchExecutor;
 import com.athanor.api.simulation.SimulationExceptionHandler;
+import com.athanor.api.simulation.SimulationBatchExecutor;
 import com.athanor.api.simulation.SimulationService;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
@@ -53,10 +55,13 @@ class OptimizationControllerTests {
 			objectMapper
 		);
 		SimulationService simulationService = new SimulationService(compilerService, objectMapper);
+		SimulationBatchExecutor simulationBatchExecutor = new LocalSimulationBatchExecutor(
+			simulationService
+		);
 		OptimizationService optimizationService = new OptimizationService(
 			scenarioService,
 			compilerService,
-			simulationService,
+			simulationBatchExecutor,
 			objectMapper
 		);
 

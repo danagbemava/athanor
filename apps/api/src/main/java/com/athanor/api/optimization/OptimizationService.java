@@ -1,7 +1,9 @@
 package com.athanor.api.optimization;
 
 import com.athanor.api.compiler.CompilerService;
+import com.athanor.api.compiler.BundleRetentionClass;
 import com.athanor.api.scenario.ScenarioService;
+import com.athanor.api.simulation.SimulationBatchExecutor;
 import com.athanor.api.simulation.SimulationService;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -31,7 +33,7 @@ public class OptimizationService implements DisposableBean {
 
 	private final ScenarioService scenarioService;
 	private final CompilerService compilerService;
-	private final SimulationService simulationService;
+	private final SimulationBatchExecutor simulationBatchExecutor;
 	private final ObjectMapper objectMapper;
 	private final ExecutorService executor;
 	private final ConcurrentMap<UUID, OptimizationJob> jobs = new ConcurrentHashMap<>();
@@ -39,12 +41,12 @@ public class OptimizationService implements DisposableBean {
 	public OptimizationService(
 		ScenarioService scenarioService,
 		CompilerService compilerService,
-		SimulationService simulationService,
+		SimulationBatchExecutor simulationBatchExecutor,
 		ObjectMapper objectMapper
 	) {
 		this.scenarioService = scenarioService;
 		this.compilerService = compilerService;
-		this.simulationService = simulationService;
+		this.simulationBatchExecutor = simulationBatchExecutor;
 		this.objectMapper = objectMapper;
 		this.executor = Executors.newFixedThreadPool(Math.max(1, Runtime.getRuntime().availableProcessors() / 4));
 	}
@@ -160,14 +162,16 @@ public class OptimizationService implements DisposableBean {
 			job.baseVersionNumber(),
 			candidateGraph
 		);
-		SimulationService.SimulationSummary summary = simulationService.simulateCompiledBundle(
+		compilerService.storeCompiledBundle(compiledBundle, BundleRetentionClass.ORPHAN);
+		SimulationService.SimulationSummary summary = simulationBatchExecutor.executeCompiledBundle(
 			compiledBundle,
 			new SimulationService.SimulationRequest(
 				job.runsPerIteration(),
 				(long) ((iteration - 1) * job.runsPerIteration()) + 1L,
 				10_000,
 				false
-			)
+			),
+			null
 		);
 		Map<String, Double> actualDistribution = outcomeRates(
 			summary.outcomeCounts(),
