@@ -7,6 +7,9 @@ apps/ui/node_modules/
 apps/ui/.nuxt/
 apps/ui/.output/
 
+# Go / worker runtime
+apps/worker/.worker-cache/
+
 # Spec package deps
 packages/spec/node_modules/
 
