@@ -2,7 +2,12 @@
 
 ## Purpose
 
-Nuxt 3 app for Scenario Studio graph authoring and validation workflows.
+Nuxt 3 app for Scenario Studio workflows, including:
+
+- graph authoring and editing
+- scenario validation and versioning
+- simulation submission, progress, and result inspection
+- optimization submission, progress, and parameter application
 
 ## Stack
 
@@ -18,6 +23,7 @@ Nuxt 3 app for Scenario Studio graph authoring and validation workflows.
 ## Run
 
 - Dev server: `npm --prefix apps/ui run dev`
+- Typical local API override: `NUXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8080 npm --prefix apps/ui run dev -- --host 127.0.0.1 --port 3001`
 
 ## Quality Gates
 
@@ -36,3 +42,4 @@ Nuxt 3 app for Scenario Studio graph authoring and validation workflows.
 - `components.json` configures shadcn-vue generation for this app.
 - API base URL defaults to `http://localhost:8080`.
 - Override API URL with `NUXT_PUBLIC_API_BASE_URL`.
+- The main authoring surface is the builder page, which drives both simulation and optimization flows against the API.
