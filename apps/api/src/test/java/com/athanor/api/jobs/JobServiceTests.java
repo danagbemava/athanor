@@ -7,12 +7,14 @@ import com.athanor.api.compiler.CompilerService;
 import com.athanor.api.compiler.FilesystemBundleStore;
 import com.athanor.api.scenario.ScenarioGraphValidator;
 import com.athanor.api.scenario.ScenarioService;
+import com.athanor.api.scenario.ScenarioServiceTestFactory;
 import com.athanor.api.simulation.LocalSimulationBatchExecutor;
 import com.athanor.api.simulation.SimulationBatchExecutor;
 import com.athanor.api.simulation.SimulationService;
 import com.athanor.api.simulation.WorkerExecutionSummaryMapper;
 import com.athanor.api.telemetry.ScenarioAnalyticsSnapshot;
 import com.athanor.api.telemetry.TelemetryService;
+import com.athanor.api.telemetry.TelemetryServiceTestFactory;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -113,10 +115,7 @@ class JobServiceTests {
 
 	private TestFixture fixture() {
 		ObjectMapper objectMapper = new ObjectMapper();
-		ScenarioService scenarioService = new ScenarioService(
-			new ScenarioGraphValidator(),
-			objectMapper
-		);
+		ScenarioService scenarioService = ScenarioServiceTestFactory.create(objectMapper);
 		CompilerService compilerService = new CompilerService(
 			scenarioService,
 			new ScenarioGraphValidator(),
@@ -127,7 +126,7 @@ class JobServiceTests {
 		SimulationBatchExecutor simulationBatchExecutor = new LocalSimulationBatchExecutor(
 			simulationService
 		);
-		TelemetryService telemetryService = new TelemetryService();
+		TelemetryService telemetryService = TelemetryServiceTestFactory.create(objectMapper);
 		JobService jobService = new JobService(
 			compilerService,
 			simulationService,
@@ -135,6 +134,8 @@ class JobServiceTests {
 			new NoopWorkerRuntimeDispatcher(),
 			new WorkerExecutionSummaryMapper(objectMapper),
 			telemetryService,
+			SimulationJobRepositoryTestFactory.create(),
+			objectMapper,
 			new SimpleMeterRegistry()
 		);
 		return new TestFixture(scenarioService, jobService, telemetryService);

@@ -6,10 +6,12 @@ import com.athanor.api.compiler.CompilerService;
 import com.athanor.api.compiler.FilesystemBundleStore;
 import com.athanor.api.scenario.ScenarioGraphValidator;
 import com.athanor.api.scenario.ScenarioService;
+import com.athanor.api.scenario.ScenarioServiceTestFactory;
 import com.athanor.api.simulation.LocalSimulationBatchExecutor;
 import com.athanor.api.simulation.SimulationService;
 import com.athanor.api.simulation.WorkerExecutionSummaryMapper;
 import com.athanor.api.telemetry.TelemetryService;
+import com.athanor.api.telemetry.TelemetryServiceTestFactory;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.nio.file.Path;
 import java.util.List;
@@ -33,10 +35,7 @@ class WorkerRuntimeEventHandlerTests {
 	@BeforeEach
 	void setUp() throws Exception {
 		ObjectMapper objectMapper = new ObjectMapper();
-		ScenarioService scenarioService = new ScenarioService(
-			new ScenarioGraphValidator(),
-			objectMapper
-		);
+		ScenarioService scenarioService = ScenarioServiceTestFactory.create(objectMapper);
 		CompilerService compilerService = new CompilerService(
 			scenarioService,
 			new ScenarioGraphValidator(),
@@ -44,7 +43,7 @@ class WorkerRuntimeEventHandlerTests {
 			objectMapper
 		);
 		SimulationService simulationService = new SimulationService(compilerService, objectMapper);
-		telemetryService = new TelemetryService();
+		telemetryService = TelemetryServiceTestFactory.create(objectMapper);
 		jobService = new JobService(
 			compilerService,
 			simulationService,
@@ -52,6 +51,8 @@ class WorkerRuntimeEventHandlerTests {
 			new StubWorkerRuntimeDispatcher(),
 			new WorkerExecutionSummaryMapper(objectMapper),
 			telemetryService,
+			SimulationJobRepositoryTestFactory.create(),
+			objectMapper,
 			new SimpleMeterRegistry()
 		);
 		eventHandler = new WorkerRuntimeEventHandler(jobService, objectMapper);
@@ -93,6 +94,24 @@ class WorkerRuntimeEventHandlerTests {
 		assertEquals("completed", snapshot.status());
 		assertEquals(2, snapshot.completedRuns());
 		assertEquals(100.0d, snapshot.progressPercent());
+		assertEquals(1, telemetryService.scenarioAnalytics(snapshot.scenarioId()).batchCount());
+	}
+
+	@Test
+	void ignoresDuplicateCompletionEvents() throws Exception {
+		String bundleHash = jobService.getSimulationJob(runId).bundleHash();
+		WorkerRuntimeEventMessage completion = new WorkerRuntimeEventMessage(
+			"1-1",
+			runId,
+			"complete",
+			new ObjectMapper().writeValueAsString(executionResult(bundleHash))
+		);
+
+		eventHandler.handle(completion);
+		eventHandler.handle(completion);
+
+		SimulationJobSnapshot snapshot = jobService.getSimulationJob(runId);
+		assertEquals("completed", snapshot.status());
 		assertEquals(1, telemetryService.scenarioAnalytics(snapshot.scenarioId()).batchCount());
 	}
 

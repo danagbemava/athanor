@@ -28,10 +28,7 @@ class ScenarioControllerTests {
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
-        ScenarioService scenarioService = new ScenarioService(
-            new ScenarioGraphValidator(),
-            objectMapper
-        );
+        ScenarioService scenarioService = ScenarioServiceTestFactory.create(objectMapper);
         ScenarioController controller = new ScenarioController(scenarioService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
             .setControllerAdvice(new ScenarioExceptionHandler())
@@ -156,6 +153,35 @@ class ScenarioControllerTests {
             .andExpect(jsonPath("$.error").exists());
     }
 
+    @Test
+    void validateReturnsDuplicateChanceDestinationError() throws Exception {
+        MvcResult created = mockMvc
+            .perform(
+                post("/scenarios")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        objectMapper.writeValueAsBytes(
+                            createRequest(duplicateChanceDestinationGraph())
+                        )
+                    )
+            )
+            .andExpect(status().isCreated())
+            .andReturn();
+
+        UUID scenarioId = UUID.fromString(
+            objectMapper
+                .readTree(created.getResponse().getContentAsByteArray())
+                .get("scenarioId")
+                .textValue()
+        );
+
+        mockMvc
+            .perform(post("/scenarios/{id}/validate", scenarioId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.valid").value(false))
+            .andExpect(jsonPath("$.errors[*].code", hasItem("chance_destinations")));
+    }
+
 
     private Map<String, Object> createRequest(Map<String, Object> graph) {
         return Map.of(
@@ -188,6 +214,39 @@ class ScenarioControllerTests {
             ),
             "edges",
             List.of(Map.of("from", entryNodeId, "to", terminalNodeId))
+        );
+    }
+
+    private Map<String, Object> duplicateChanceDestinationGraph() {
+        return Map.of(
+            "id",
+            "scenario-id",
+            "name",
+            "Scenario Graph",
+            "version",
+            1,
+            "entry_node_id",
+            "review",
+            "nodes",
+            List.of(
+                Map.of(
+                    "id",
+                    "review",
+                    "type",
+                    "ChanceNode",
+                    "chance_options",
+                    List.of(
+                        Map.of("to", "approved", "weight", 0.6),
+                        Map.of("to", "approved", "weight", 0.4)
+                    )
+                ),
+                Map.of("id", "approved", "type", "TerminalNode", "outcome", "approved")
+            ),
+            "edges",
+            List.of(
+                Map.of("from", "review", "to", "approved"),
+                Map.of("from", "review", "to", "approved")
+            )
         );
     }
 }

@@ -113,3 +113,51 @@ func TestAppliesAllEffects(t *testing.T) {
 		t.Fatalf("unexpected tags: %#v", finalState["tags"])
 	}
 }
+
+func TestTraceSnapshotsDeepCloneNestedState(t *testing.T) {
+	bundle := Bundle{
+		BundleHash:  "hash-nested",
+		EntryNodeID: "start",
+		InitialState: map[string]any{
+			"inventory": map[string]any{
+				"count": float64(1),
+			},
+		},
+		Nodes: []Node{
+			{
+				ID:   "start",
+				Type: NodeTypeDecision,
+				Effects: []Effect{
+					{
+						Op:   EffectSet,
+						Path: "inventory",
+						Value: map[string]any{
+							"count": float64(2),
+						},
+					},
+				},
+				DecisionOptions: []DecisionOption{{To: "terminal"}},
+			},
+			{ID: "terminal", Type: NodeTypeTerminal, Outcome: "done"},
+		},
+	}
+
+	result := Run(bundle, 7, &agent.ScriptedPolicy{Choices: []int{0}})
+	if len(result.Trace) == 0 {
+		t.Fatal("expected trace output")
+	}
+
+	stateBefore := result.Trace[0].StateBefore["inventory"].(map[string]any)
+	stateAfter := result.Trace[0].StateAfter["inventory"].(map[string]any)
+	finalState := result.Metrics["final_state"].(map[string]any)["inventory"].(map[string]any)
+
+	if stateBefore["count"] != float64(1) {
+		t.Fatalf("expected pre-effect nested state to remain 1, got %#v", stateBefore["count"])
+	}
+	if stateAfter["count"] != float64(2) {
+		t.Fatalf("expected post-effect nested state to be 2, got %#v", stateAfter["count"])
+	}
+	if finalState["count"] != float64(2) {
+		t.Fatalf("expected final nested state to be 2, got %#v", finalState["count"])
+	}
+}

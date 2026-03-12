@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 import com.athanor.api.scenario.ScenarioGraphValidator;
 import com.athanor.api.scenario.ScenarioService;
+import com.athanor.api.scenario.ScenarioServiceTestFactory;
 import com.networknt.schema.InputFormat;
 import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
@@ -25,10 +26,7 @@ import tools.jackson.databind.ObjectMapper;
 class GoldenCorpusCompilerTests {
 
 	private final ObjectMapper objectMapper = new ObjectMapper();
-	private final ScenarioService scenarioService = new ScenarioService(
-		new ScenarioGraphValidator(),
-		objectMapper
-	);
+	private final ScenarioService scenarioService = ScenarioServiceTestFactory.create(objectMapper);
 	private final CompilerService compilerService = new CompilerService(
 		scenarioService,
 		new ScenarioGraphValidator(),

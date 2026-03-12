@@ -47,8 +47,9 @@ func (runtime *Runtime) ProcessDispatch(request DispatchRequest, publisher Event
 	reporter := publisherProgressReporter{
 		runID:     request.RunID,
 		publisher: publisher,
+		interval:  progressInterval(request.Request.RunCount),
 	}
-	result, err := runtime.executeFunc(bundle, request.Request, reporter)
+	result, err := runtime.executeFunc(bundle, request.Request, &reporter)
 	if err != nil {
 		if publisher != nil {
 			_ = publisher.PublishFailure(request.RunID, err.Error())
@@ -77,13 +78,32 @@ type EventPublisher interface {
 type publisherProgressReporter struct {
 	runID     string
 	publisher EventPublisher
+	interval  int
+	lastSent  int
 }
 
-func (reporter publisherProgressReporter) RunCompleted(completedRuns int, totalRuns int) error {
+func (reporter *publisherProgressReporter) RunCompleted(completedRuns int, totalRuns int) error {
 	if reporter.publisher == nil {
 		return nil
 	}
+	if completedRuns != 1 &&
+		completedRuns != totalRuns &&
+		completedRuns-reporter.lastSent < reporter.interval {
+		return nil
+	}
+	reporter.lastSent = completedRuns
 	return reporter.publisher.PublishProgress(reporter.runID, completedRuns, totalRuns)
+}
+
+func progressInterval(runCount int) int {
+	if runCount <= 1 {
+		return 1
+	}
+	interval := runCount / 100
+	if interval < 1 {
+		return 1
+	}
+	return interval
 }
 
 type DispatchRequest struct {

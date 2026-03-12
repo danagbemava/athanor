@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.athanor.api.scenario.ScenarioGraphValidator;
 import com.athanor.api.scenario.ScenarioService;
+import com.athanor.api.scenario.ScenarioServiceTestFactory;
 import com.networknt.schema.InputFormat;
 import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
@@ -35,10 +36,7 @@ class WorkerContractIntegrationTests {
 	@BeforeEach
 	void setUp() {
 		objectMapper = new ObjectMapper();
-		scenarioService = new ScenarioService(
-			new ScenarioGraphValidator(),
-			objectMapper
-		);
+		scenarioService = ScenarioServiceTestFactory.create(objectMapper);
 		compilerService = new CompilerService(
 			scenarioService,
 			new ScenarioGraphValidator(),

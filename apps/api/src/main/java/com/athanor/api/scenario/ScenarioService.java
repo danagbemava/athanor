@@ -1,27 +1,30 @@
 package com.athanor.api.scenario;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import org.springframework.stereotype.Service;
-import tools.jackson.core.type.TypeReference;
+import org.springframework.beans.factory.annotation.Autowired;
 import tools.jackson.databind.ObjectMapper;
+import org.springframework.stereotype.Service;
 
 @Service
 public class ScenarioService {
 
-    private final Map<UUID, ScenarioAggregate> scenarios =
-        new ConcurrentHashMap<>();
+    private final ScenarioEntityJpaRepository scenarioRepository;
+    private final ScenarioVersionEntityJpaRepository versionRepository;
     private final ScenarioGraphValidator graphValidator;
     private final ObjectMapper objectMapper;
 
+    @Autowired
     public ScenarioService(
+        ScenarioEntityJpaRepository scenarioRepository,
+        ScenarioVersionEntityJpaRepository versionRepository,
         ScenarioGraphValidator graphValidator,
         ObjectMapper objectMapper
     ) {
+        this.scenarioRepository = scenarioRepository;
+        this.versionRepository = versionRepository;
         this.graphValidator = graphValidator;
         this.objectMapper = objectMapper;
     }
@@ -31,62 +34,79 @@ public class ScenarioService {
         UUID scenarioId = UUID.randomUUID();
         UUID versionId = UUID.randomUUID();
 
-        ScenarioVersion version = new ScenarioVersion(
+        ScenarioVersionEntity version = new ScenarioVersionEntity(
             versionId,
+            scenarioId,
             1,
             "draft",
             now,
-            deepCopy(command.graph())
+            writeGraph(command.graph())
         );
 
-        ScenarioAggregate aggregate = new ScenarioAggregate(
+        ScenarioEntity aggregate = new ScenarioEntity(
             scenarioId,
             command.name(),
             command.description(),
             now,
-            now,
-            new ArrayList<>(List.of(version))
+            now
         );
 
-        scenarios.put(scenarioId, aggregate);
-        return toSnapshot(aggregate, version);
+        scenarioRepository.save(aggregate);
+        versionRepository.save(version);
+        return toSnapshot(aggregate, version, 1);
     }
 
     public ScenarioSnapshot createVersion(
         UUID scenarioId,
         CreateVersionCommand command
     ) {
-        ScenarioAggregate aggregate = findScenario(scenarioId);
+        ScenarioEntity aggregate = findScenario(scenarioId);
+        ScenarioVersionEntity latest = latestVersion(scenarioId);
+        int nextVersion = latest.versionNumber() + 1;
+        Instant now = Instant.now();
 
-        synchronized (aggregate) {
-            ScenarioVersion latest = latestVersion(aggregate);
-            int nextVersion = latest.versionNumber() + 1;
-            Instant now = Instant.now();
+        ScenarioVersionEntity version = new ScenarioVersionEntity(
+            UUID.randomUUID(),
+            scenarioId,
+            nextVersion,
+            "draft",
+            now,
+            writeGraph(command.graph())
+        );
 
-            ScenarioVersion version = new ScenarioVersion(
-                UUID.randomUUID(),
-                nextVersion,
-                "draft",
-                now,
-                deepCopy(command.graph())
-            );
-
-            aggregate.versions().add(version);
-            if (command.name() != null && !command.name().isBlank()) {
-                aggregate.setName(command.name());
-            }
-            if (command.description() != null) {
-                aggregate.setDescription(command.description());
-            }
-            aggregate.setUpdatedAt(now);
-            return toSnapshot(aggregate, version);
-        }
+        String name = command.name() != null && !command.name().isBlank()
+            ? command.name()
+            : aggregate.name();
+        String description = command.description() != null
+            ? command.description()
+            : aggregate.description();
+        scenarioRepository.save(
+            new ScenarioEntity(
+                aggregate.id(),
+                name,
+                description,
+                aggregate.createdAt(),
+                now
+            )
+        );
+        versionRepository.save(version);
+        return toSnapshot(
+            new ScenarioEntity(
+                aggregate.id(),
+                name,
+                description,
+                aggregate.createdAt(),
+                now
+            ),
+            version,
+            nextVersion
+        );
     }
 
     public ScenarioValidationSnapshot validateLatestVersion(UUID scenarioId) {
-        ScenarioAggregate aggregate = findScenario(scenarioId);
-        ScenarioVersion latest = latestVersion(aggregate);
-        ValidationResult result = graphValidator.validate(latest.graph());
+        ScenarioEntity aggregate = findScenario(scenarioId);
+        ScenarioVersionEntity latest = latestVersion(scenarioId);
+        ValidationResult result = graphValidator.validate(readGraph(latest.graphJson()));
 
         return new ScenarioValidationSnapshot(
             aggregate.id(),
@@ -99,8 +119,8 @@ public class ScenarioService {
     }
 
     public LatestScenarioVersionSnapshot latestVersionSnapshot(UUID scenarioId) {
-        ScenarioAggregate aggregate = findScenario(scenarioId);
-        ScenarioVersion latest = latestVersion(aggregate);
+        ScenarioEntity aggregate = findScenario(scenarioId);
+        ScenarioVersionEntity latest = latestVersion(scenarioId);
 
         return new LatestScenarioVersionSnapshot(
             aggregate.id(),
@@ -110,26 +130,27 @@ public class ScenarioService {
             latest.versionNumber(),
             latest.state(),
             latest.createdAt(),
-            deepCopy(latest.graph())
+            readGraph(latest.graphJson())
         );
     }
 
-    private ScenarioAggregate findScenario(UUID id) {
-        ScenarioAggregate aggregate = scenarios.get(id);
-        if (aggregate == null) {
-            throw new ScenarioNotFoundException(id);
-        }
-        return aggregate;
+    private ScenarioEntity findScenario(UUID id) {
+        return scenarioRepository.findById(id).orElseThrow(() -> new ScenarioNotFoundException(id));
     }
 
-    private ScenarioVersion latestVersion(ScenarioAggregate aggregate) {
-        List<ScenarioVersion> versions = aggregate.versions();
-        return versions.get(versions.size() - 1);
+    private ScenarioVersionEntity latestVersion(
+        UUID scenarioId
+    ) {
+        findScenario(scenarioId);
+        return versionRepository
+            .findFirstByScenarioIdOrderByVersionNumberDesc(scenarioId)
+            .orElseThrow(() -> new ScenarioNotFoundException(scenarioId));
     }
 
     private ScenarioSnapshot toSnapshot(
-        ScenarioAggregate aggregate,
-        ScenarioVersion latestVersion
+        ScenarioEntity aggregate,
+        ScenarioVersionEntity latestVersion,
+        int versionCount
     ) {
         return new ScenarioSnapshot(
             aggregate.id(),
@@ -137,7 +158,7 @@ public class ScenarioService {
             aggregate.description(),
             aggregate.createdAt(),
             aggregate.updatedAt(),
-            aggregate.versions().size(),
+            versionCount,
             new ScenarioVersionSummary(
                 latestVersion.id(),
                 latestVersion.versionNumber(),
@@ -151,11 +172,27 @@ public class ScenarioService {
         if (value == null) {
             return Map.of();
         }
-        Map<String, Object> copied = objectMapper.convertValue(
-            value,
-            new TypeReference<>() {}
-        );
-        return copied == null ? Map.of() : copied;
+		@SuppressWarnings("unchecked")
+		Map<String, Object> copied = objectMapper.convertValue(value, Map.class);
+		return copied == null ? Map.of() : copied;
+	}
+
+    private String writeGraph(Map<String, Object> graph) {
+        try {
+            return objectMapper.writeValueAsString(deepCopy(graph));
+        } catch (RuntimeException exception) {
+            throw new IllegalStateException("failed to serialize scenario graph", exception);
+        }
+    }
+
+    private Map<String, Object> readGraph(String graphJson) {
+		try {
+			@SuppressWarnings("unchecked")
+			Map<String, Object> graph = objectMapper.readValue(graphJson, Map.class);
+			return graph == null ? Map.of() : deepCopy(graph);
+		} catch (RuntimeException exception) {
+			throw new IllegalStateException("failed to deserialize scenario graph", exception);
+		}
     }
 
     public record CreateScenarioCommand(
@@ -206,74 +243,4 @@ public class ScenarioService {
         Instant versionCreatedAt,
         Map<String, Object> graph
     ) {}
-
-    private record ScenarioVersion(
-        UUID id,
-        int versionNumber,
-        String state,
-        Instant createdAt,
-        Map<String, Object> graph
-    ) {}
-
-    private static final class ScenarioAggregate {
-
-        private final UUID id;
-        private String name;
-        private String description;
-        private final Instant createdAt;
-        private Instant updatedAt;
-        private final List<ScenarioVersion> versions;
-
-        private ScenarioAggregate(
-            UUID id,
-            String name,
-            String description,
-            Instant createdAt,
-            Instant updatedAt,
-            List<ScenarioVersion> versions
-        ) {
-            this.id = id;
-            this.name = name;
-            this.description = description;
-            this.createdAt = createdAt;
-            this.updatedAt = updatedAt;
-            this.versions = versions;
-        }
-
-        private UUID id() {
-            return id;
-        }
-
-        private String name() {
-            return name;
-        }
-
-        private String description() {
-            return description;
-        }
-
-        private Instant createdAt() {
-            return createdAt;
-        }
-
-        private Instant updatedAt() {
-            return updatedAt;
-        }
-
-        private void setUpdatedAt(Instant updatedAt) {
-            this.updatedAt = updatedAt;
-        }
-
-        private void setName(String name) {
-            this.name = name;
-        }
-
-        private void setDescription(String description) {
-            this.description = description;
-        }
-
-        private List<ScenarioVersion> versions() {
-            return versions;
-        }
-    }
 }

@@ -297,7 +297,7 @@ func traceEffects(effects []Effect) []TraceEffect {
 		output = append(output, TraceEffect{
 			Op:    string(effect.Op),
 			Path:  effect.Path,
-			Value: effect.Value,
+			Value: deepCloneValue(effect.Value),
 		})
 	}
 	return output
@@ -333,7 +333,7 @@ func traceGuard(guard *Guard) *TraceGuard {
 	if guard == nil {
 		return nil
 	}
-	return &TraceGuard{Var: guard.Var, Equals: guard.Equals}
+	return &TraceGuard{Var: guard.Var, Equals: deepCloneValue(guard.Equals)}
 }
 
 func cloneState(in map[string]any) map[string]any {
@@ -342,9 +342,30 @@ func cloneState(in map[string]any) map[string]any {
 	}
 	out := make(map[string]any, len(in))
 	for k, v := range in {
-		out[k] = v
+		out[k] = deepCloneValue(v)
 	}
 	return out
+}
+
+func deepCloneValue(value any) any {
+	switch typed := value.(type) {
+	case map[string]any:
+		out := make(map[string]any, len(typed))
+		for key, nested := range typed {
+			out[key] = deepCloneValue(nested)
+		}
+		return out
+	case []any:
+		out := make([]any, len(typed))
+		for index, item := range typed {
+			out[index] = deepCloneValue(item)
+		}
+		return out
+	case []string:
+		return append([]string{}, typed...)
+	default:
+		return typed
+	}
 }
 
 func applyEffects(state map[string]any, effects []Effect) {

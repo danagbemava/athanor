@@ -11,6 +11,7 @@ import com.athanor.api.scenario.ScenarioController;
 import com.athanor.api.scenario.ScenarioExceptionHandler;
 import com.athanor.api.scenario.ScenarioGraphValidator;
 import com.athanor.api.scenario.ScenarioService;
+import com.athanor.api.scenario.ScenarioServiceTestFactory;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -36,10 +37,7 @@ class SimulationControllerTests {
 	@BeforeEach
 	void setUp() {
 		objectMapper = new ObjectMapper();
-		ScenarioService scenarioService = new ScenarioService(
-			new ScenarioGraphValidator(),
-			objectMapper
-		);
+		ScenarioService scenarioService = ScenarioServiceTestFactory.create(objectMapper);
 		CompilerService compilerService = new CompilerService(
 			scenarioService,
 			new ScenarioGraphValidator(),

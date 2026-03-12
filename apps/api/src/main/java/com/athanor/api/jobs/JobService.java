@@ -6,10 +6,9 @@ import com.athanor.api.simulation.SimulationService;
 import com.athanor.api.simulation.SimulationBatchExecutor;
 import com.athanor.api.simulation.WorkerExecutionSummaryMapper;
 import com.athanor.api.telemetry.TelemetryService;
+import jakarta.annotation.PostConstruct;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -17,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.ObjectMapper;
 
 @Service
 public class JobService implements DisposableBean {
@@ -30,13 +30,15 @@ public class JobService implements DisposableBean {
 	private final WorkerRuntimeDispatcher workerRuntimeDispatcher;
 	private final WorkerExecutionSummaryMapper summaryMapper;
 	private final TelemetryService telemetryService;
+	private final SimulationJobEntityJpaRepository jobRepository;
+	private final ObjectMapper objectMapper;
 	private final ExecutorService executor;
-	private final ConcurrentMap<UUID, SimulationJob> jobs = new ConcurrentHashMap<>();
 	private final AtomicInteger pendingJobs = new AtomicInteger();
 	private final AtomicInteger runningJobs = new AtomicInteger();
 	private final AtomicInteger deadLetterJobs = new AtomicInteger();
 	private final int workerCount;
 
+	@org.springframework.beans.factory.annotation.Autowired
 	public JobService(
 		CompilerService compilerService,
 		SimulationService simulationService,
@@ -44,6 +46,8 @@ public class JobService implements DisposableBean {
 		WorkerRuntimeDispatcher workerRuntimeDispatcher,
 		WorkerExecutionSummaryMapper summaryMapper,
 		TelemetryService telemetryService,
+		SimulationJobEntityJpaRepository jobRepository,
+		ObjectMapper objectMapper,
 		MeterRegistry meterRegistry
 	) {
 		this.compilerService = compilerService;
@@ -52,6 +56,8 @@ public class JobService implements DisposableBean {
 		this.workerRuntimeDispatcher = workerRuntimeDispatcher;
 		this.summaryMapper = summaryMapper;
 		this.telemetryService = telemetryService;
+		this.jobRepository = jobRepository;
+		this.objectMapper = objectMapper;
 		this.workerCount = Math.max(2, Runtime.getRuntime().availableProcessors() / 2);
 		this.executor =
 			Executors.newFixedThreadPool(workerCount, new SimulationWorkerThreadFactory());
@@ -60,6 +66,35 @@ public class JobService implements DisposableBean {
 		meterRegistry.gauge("athanor.jobs.workers.running", runningJobs);
 		meterRegistry.gauge("athanor.jobs.workers.idle", this, JobService::idleWorkers);
 		meterRegistry.gauge("athanor.jobs.dead_letter.depth", deadLetterJobs);
+	}
+
+	@PostConstruct
+	void recoverIncompleteJobs() {
+		for (SimulationJobEntity stored : jobRepository.findByStatusIn(
+			java.util.List.of("pending")
+		)) {
+			SimulationJob job = SimulationJob.fromEntity(stored, objectMapper);
+			pendingJobs.incrementAndGet();
+			schedule(job);
+		}
+		if (!workerRuntimeDispatcher.enabled()) {
+			for (SimulationJobEntity stored : jobRepository.findByStatusIn(
+				java.util.List.of("running")
+			)) {
+				SimulationJob job = SimulationJob.fromEntity(stored, objectMapper);
+				job.markForRetry(new IllegalStateException("api restarted during execution"), MAX_ATTEMPTS);
+				save(job);
+				pendingJobs.incrementAndGet();
+				schedule(job);
+			}
+		}
+		for (SimulationJobEntity stored : jobRepository.findByStatusIn(
+			java.util.List.of("failed")
+		)) {
+			if (stored.deadLettered()) {
+				deadLetterJobs.incrementAndGet();
+			}
+		}
 	}
 
 	public SubmittedSimulationJob submitSimulationJob(
@@ -78,7 +113,7 @@ public class JobService implements DisposableBean {
 			scenarioId,
 			normalizedRequest
 		);
-		jobs.put(job.runId(), job);
+		save(job);
 		pendingJobs.incrementAndGet();
 		schedule(job);
 		return new SubmittedSimulationJob(
@@ -90,10 +125,7 @@ public class JobService implements DisposableBean {
 	}
 
 	public SimulationJobSnapshot getSimulationJob(UUID runId) {
-		SimulationJob job = jobs.get(runId);
-		if (job == null) {
-			throw new SimulationJobNotFoundException("runId not found");
-		}
+		SimulationJob job = job(runId);
 		return job.snapshot();
 	}
 
@@ -103,11 +135,18 @@ public class JobService implements DisposableBean {
 		int totalRuns
 	) {
 		SimulationJob job = job(runId);
+		if (isTerminal(job.status())) {
+			return;
+		}
 		job.recordProgress(completedRuns, totalRuns, null);
+		save(job);
 	}
 
 	public void completeWorkerJob(UUID runId, WorkerExecutionResult executionResult) {
 		SimulationJob job = job(runId);
+		if (isTerminal(job.status())) {
+			return;
+		}
 		SimulationService.SimulationSummary summary = summaryMapper.toSimulationSummary(
 			job.scenarioId(),
 			job.versionId(),
@@ -117,18 +156,24 @@ public class JobService implements DisposableBean {
 			null
 		);
 		job.markCompleted(summary);
+		save(job);
 		recordTelemetry(summary);
-		runningJobs.decrementAndGet();
+		decrementRunningJobs();
 	}
 
 	public void failWorkerJob(UUID runId, String error) {
 		SimulationJob job = job(runId);
-		runningJobs.decrementAndGet();
+		if (isTerminal(job.status())) {
+			return;
+		}
+		decrementRunningJobs();
 		if (job.markForRetry(new IllegalStateException(error), MAX_ATTEMPTS)) {
+			save(job);
 			pendingJobs.incrementAndGet();
 			schedule(job);
 			return;
 		}
+		save(job);
 		deadLetterJobs.incrementAndGet();
 		log.warn(
 			"simulation job {} moved to dead-letter queue after {} attempts: {}",
@@ -155,11 +200,13 @@ public class JobService implements DisposableBean {
 		pendingJobs.decrementAndGet();
 		runningJobs.incrementAndGet();
 		job.markRunning();
+		save(job);
 		boolean remoteExecutionAccepted = false;
 
 		try {
 			var compiledBundle = compilerService.compileScenarioBundle(job.scenarioId());
 			job.attachCompiledBundle(compiledBundle);
+			save(job);
 			if (workerRuntimeDispatcher.enabled()) {
 				workerRuntimeDispatcher.dispatchSimulationJob(job.runId(), compiledBundle, job.request());
 				remoteExecutionAccepted = true;
@@ -171,12 +218,15 @@ public class JobService implements DisposableBean {
 				job::recordProgress
 			);
 			job.markCompleted(summary);
+			save(job);
 			recordTelemetry(summary);
 		} catch (RuntimeException exception) {
 			if (job.markForRetry(exception, MAX_ATTEMPTS)) {
+				save(job);
 				pendingJobs.incrementAndGet();
 				schedule(job);
 			} else {
+				save(job);
 				deadLetterJobs.incrementAndGet();
 				log.warn(
 					"simulation job {} moved to dead-letter queue after {} attempts: {}",
@@ -187,17 +237,28 @@ public class JobService implements DisposableBean {
 			}
 		} finally {
 			if (!remoteExecutionAccepted) {
-				runningJobs.decrementAndGet();
+				decrementRunningJobs();
 			}
 		}
 	}
 
+	private void decrementRunningJobs() {
+		runningJobs.updateAndGet(current -> current > 0 ? current - 1 : 0);
+	}
+
+	private boolean isTerminal(String status) {
+		return "completed".equals(status) || "failed".equals(status);
+	}
+
 	private SimulationJob job(UUID runId) {
-		SimulationJob job = jobs.get(runId);
-		if (job == null) {
-			throw new SimulationJobNotFoundException("runId not found");
-		}
-		return job;
+		return jobRepository
+			.findById(runId)
+			.map(entity -> SimulationJob.fromEntity(entity, objectMapper))
+			.orElseThrow(() -> new SimulationJobNotFoundException("runId not found"));
+	}
+
+	private void save(SimulationJob job) {
+		jobRepository.save(job.toEntity(objectMapper));
 	}
 
 	private void recordTelemetry(SimulationService.SimulationSummary summary) {

@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import tools.jackson.databind.ObjectMapper;
 
 final class ScenarioTelemetryAggregate {
 
@@ -30,6 +31,33 @@ final class ScenarioTelemetryAggregate {
 
 	ScenarioTelemetryAggregate(UUID scenarioId) {
 		this.scenarioId = scenarioId;
+	}
+
+	static ScenarioTelemetryAggregate fromEntity(
+		TelemetryEntity entity,
+		ObjectMapper objectMapper
+	) {
+		PersistedTelemetryAggregate stored = readJson(
+			objectMapper,
+			entity.aggregateJson(),
+			PersistedTelemetryAggregate.class
+		);
+		ScenarioTelemetryAggregate aggregate = new ScenarioTelemetryAggregate(
+			stored.scenarioId()
+		);
+		aggregate.latestVersionId = stored.latestVersionId();
+		aggregate.latestVersionNumber = stored.latestVersionNumber();
+		aggregate.latestBundleHash = stored.latestBundleHash();
+		aggregate.agentVersion = stored.agentVersion();
+		aggregate.batchCount = stored.batchCount();
+		aggregate.runCount = stored.runCount();
+		aggregate.totalSteps = stored.totalSteps();
+		aggregate.lastCompletedAt = stored.lastCompletedAt();
+		aggregate.completedRunSteps.addAll(stored.completedRunSteps());
+		aggregate.outcomeCounts.putAll(stored.outcomeCounts());
+		aggregate.nodeVisitCounts.putAll(stored.nodeVisitCounts());
+		aggregate.sampledTraces.addAll(stored.sampledTraces());
+		return aggregate;
 	}
 
 	synchronized void record(SimulationService.SimulationSummary summary) {
@@ -121,4 +149,64 @@ final class ScenarioTelemetryAggregate {
 				LinkedHashMap::putAll
 			);
 	}
+
+	synchronized TelemetryEntity toEntity(ObjectMapper objectMapper) {
+		return new TelemetryEntity(
+			scenarioId,
+			writeJson(
+				objectMapper,
+				new PersistedTelemetryAggregate(
+					scenarioId,
+					latestVersionId,
+					latestVersionNumber,
+					latestBundleHash,
+					agentVersion,
+					batchCount,
+					runCount,
+					totalSteps,
+					lastCompletedAt,
+					List.copyOf(completedRunSteps),
+					Map.copyOf(outcomeCounts),
+					Map.copyOf(nodeVisitCounts),
+					List.copyOf(sampledTraces)
+				)
+			)
+		);
+	}
+
+	private static String writeJson(ObjectMapper objectMapper, Object value) {
+		try {
+			return objectMapper.writeValueAsString(value);
+		} catch (RuntimeException exception) {
+			throw new IllegalStateException("failed to serialize telemetry aggregate", exception);
+		}
+	}
+
+	private static <T> T readJson(
+		ObjectMapper objectMapper,
+		String json,
+		Class<T> type
+	) {
+		try {
+			return objectMapper.readValue(json, type);
+		} catch (RuntimeException exception) {
+			throw new IllegalStateException("failed to deserialize telemetry aggregate", exception);
+		}
+	}
+
+	private record PersistedTelemetryAggregate(
+		UUID scenarioId,
+		UUID latestVersionId,
+		Integer latestVersionNumber,
+		String latestBundleHash,
+		String agentVersion,
+		int batchCount,
+		long runCount,
+		long totalSteps,
+		Instant lastCompletedAt,
+		List<Integer> completedRunSteps,
+		Map<String, Long> outcomeCounts,
+		Map<String, Long> nodeVisitCounts,
+		List<ScenarioAnalyticsTraceSample> sampledTraces
+	) {}
 }

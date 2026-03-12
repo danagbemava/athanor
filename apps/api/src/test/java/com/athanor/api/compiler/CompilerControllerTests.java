@@ -11,6 +11,7 @@ import com.athanor.api.scenario.ScenarioExceptionHandler;
 import com.athanor.api.scenario.ScenarioGraphValidator;
 import com.athanor.api.scenario.ScenarioController;
 import com.athanor.api.scenario.ScenarioService;
+import com.athanor.api.scenario.ScenarioServiceTestFactory;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -36,10 +37,7 @@ class CompilerControllerTests {
 	@BeforeEach
 	void setUp() {
 		objectMapper = new ObjectMapper();
-		ScenarioService scenarioService = new ScenarioService(
-			new ScenarioGraphValidator(),
-			objectMapper
-		);
+		ScenarioService scenarioService = ScenarioServiceTestFactory.create(objectMapper);
 		CompilerService compilerService = new CompilerService(
 			scenarioService,
 			new ScenarioGraphValidator(),
@@ -158,7 +156,7 @@ class CompilerControllerTests {
 	@Test
 	void compileReturnsInternalServerErrorForIllegalState() throws Exception {
 		CompilerService failingCompilerService = new CompilerService(
-			new ScenarioService(new ScenarioGraphValidator(), objectMapper),
+			ScenarioServiceTestFactory.create(objectMapper),
 			new ScenarioGraphValidator(),
 			new FilesystemBundleStore(tempDir, objectMapper),
 			objectMapper
@@ -184,7 +182,7 @@ class CompilerControllerTests {
 	@Test
 	void compileReturnsBadRequestForIllegalArgument() throws Exception {
 		CompilerService failingCompilerService = new CompilerService(
-			new ScenarioService(new ScenarioGraphValidator(), objectMapper),
+			ScenarioServiceTestFactory.create(objectMapper),
 			new ScenarioGraphValidator(),
 			new FilesystemBundleStore(tempDir, objectMapper),
 			objectMapper
@@ -210,7 +208,7 @@ class CompilerControllerTests {
 	@Test
 	void compileReturnsInternalServerErrorForUnexpectedRuntimeException() throws Exception {
 		CompilerService failingCompilerService = new CompilerService(
-			new ScenarioService(new ScenarioGraphValidator(), objectMapper),
+			ScenarioServiceTestFactory.create(objectMapper),
 			new ScenarioGraphValidator(),
 			new FilesystemBundleStore(tempDir, objectMapper),
 			objectMapper

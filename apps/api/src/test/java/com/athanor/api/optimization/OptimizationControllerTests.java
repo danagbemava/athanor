@@ -14,6 +14,7 @@ import com.athanor.api.scenario.ScenarioController;
 import com.athanor.api.scenario.ScenarioExceptionHandler;
 import com.athanor.api.scenario.ScenarioGraphValidator;
 import com.athanor.api.scenario.ScenarioService;
+import com.athanor.api.scenario.ScenarioServiceTestFactory;
 import com.athanor.api.simulation.LocalSimulationBatchExecutor;
 import com.athanor.api.simulation.SimulationExceptionHandler;
 import com.athanor.api.simulation.SimulationBatchExecutor;
@@ -44,10 +45,7 @@ class OptimizationControllerTests {
 	@BeforeEach
 	void setUp() {
 		objectMapper = new ObjectMapper();
-		ScenarioService scenarioService = new ScenarioService(
-			new ScenarioGraphValidator(),
-			objectMapper
-		);
+		ScenarioService scenarioService = ScenarioServiceTestFactory.create(objectMapper);
 		CompilerService compilerService = new CompilerService(
 			scenarioService,
 			new ScenarioGraphValidator(),
@@ -60,9 +58,11 @@ class OptimizationControllerTests {
 		);
 		OptimizationService optimizationService = new OptimizationService(
 			scenarioService,
+			new ScenarioGraphValidator(),
 			compilerService,
 			simulationBatchExecutor,
-			objectMapper
+			objectMapper,
+			OptimizationJobRepositoryTestFactory.create()
 		);
 
 		mockMvc = MockMvcBuilders
@@ -139,6 +139,36 @@ class OptimizationControllerTests {
 			)
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.error").value("scenarioId is required"));
+	}
+
+	@Test
+	void submitOptimizationRejectsDuplicateChanceDestinationsWithActionableError()
+		throws Exception {
+		UUID scenarioId = createScenario(duplicateChanceDestinationGraph());
+
+		mockMvc
+			.perform(
+				post("/optimize")
+					.contentType(MediaType.APPLICATION_JSON)
+					.content(
+						objectMapper.writeValueAsBytes(
+							Map.of(
+								"scenarioId",
+								scenarioId,
+								"targetDistribution",
+								Map.of("approved", 1.0)
+							)
+						)
+					)
+			)
+			.andExpect(status().isBadRequest())
+			.andExpect(
+				jsonPath("$.error").value(
+					org.hamcrest.Matchers.containsString(
+						"chance node 'review' has duplicate destination 'approved'"
+					)
+				)
+			);
 	}
 
 	private JsonNode waitForCompletedJob(String jobId) throws Exception {
@@ -244,6 +274,39 @@ class OptimizationControllerTests {
 				Map.of("from", "start", "to", "success_terminal"),
 				Map.of("from", "start", "to", "partial_terminal"),
 				Map.of("from", "start", "to", "failure_terminal")
+			)
+		);
+	}
+
+	private Map<String, Object> duplicateChanceDestinationGraph() {
+		return Map.of(
+			"id",
+			"duplicate-chance-destination",
+			"name",
+			"Duplicate Chance Destination",
+			"version",
+			1,
+			"entry_node_id",
+			"review",
+			"nodes",
+			List.of(
+				Map.of(
+					"id",
+					"review",
+					"type",
+					"ChanceNode",
+					"chance_options",
+					List.of(
+						Map.of("to", "approved", "weight", 0.6),
+						Map.of("to", "approved", "weight", 0.4)
+					)
+				),
+				Map.of("id", "approved", "type", "TerminalNode", "outcome", "approved")
+			),
+			"edges",
+			List.of(
+				Map.of("from", "review", "to", "approved"),
+				Map.of("from", "review", "to", "approved")
 			)
 		);
 	}

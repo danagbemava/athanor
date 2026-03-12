@@ -1353,8 +1353,10 @@ export function useScenarioStudio() {
   }
 
   async function pollSimulationJob(runId: string) {
-    const maxAttempts = 120;
-    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const maxIdleAttempts = 120;
+    let idleAttempts = 0;
+    let lastCompletedRuns = -1;
+    for (;;) {
       const response = await fetch(`${apiBaseUrl.value}/runs/${runId}`);
       const payload = await response.json();
       if (!response.ok) {
@@ -1363,6 +1365,13 @@ export function useScenarioStudio() {
 
       const job = payload as SimulationJobSnapshot;
       simulationJob.value = job;
+
+      if (job.completedRuns > lastCompletedRuns) {
+        lastCompletedRuns = job.completedRuns;
+        idleAttempts = 0;
+      } else {
+        idleAttempts += 1;
+      }
 
       if (job.summary) {
         simulationResponse.value = job.summary;
@@ -1394,6 +1403,10 @@ export function useScenarioStudio() {
         job.status === "running"
           ? `Simulation in progress: ${job.completedRuns}/${job.totalRuns} runs`
           : "Waiting for simulation worker...";
+
+      if (idleAttempts >= maxIdleAttempts) {
+        break;
+      }
 
       await new Promise((resolve) => window.setTimeout(resolve, 1000));
     }

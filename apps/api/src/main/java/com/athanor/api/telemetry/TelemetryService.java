@@ -2,34 +2,43 @@ package com.athanor.api.telemetry;
 
 import com.athanor.api.simulation.SimulationService;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.ObjectMapper;
 
 @Service
 public class TelemetryService {
 
-	private final ConcurrentMap<UUID, ScenarioTelemetryAggregate> analyticsByScenario =
-		new ConcurrentHashMap<>();
+	private final TelemetryEntityJpaRepository telemetryRepository;
+	private final ObjectMapper objectMapper;
+
+	@Autowired
+	public TelemetryService(
+		TelemetryEntityJpaRepository telemetryRepository,
+		ObjectMapper objectMapper
+	) {
+		this.telemetryRepository = telemetryRepository;
+		this.objectMapper = objectMapper;
+	}
 
 	public void recordSimulationSummary(SimulationService.SimulationSummary summary) {
 		if (summary == null) {
 			return;
 		}
 
-		analyticsByScenario
-			.computeIfAbsent(
-				summary.scenarioId(),
-				ignored -> new ScenarioTelemetryAggregate(summary.scenarioId())
-			)
-			.record(summary);
+		ScenarioTelemetryAggregate aggregate = telemetryRepository
+			.findById(summary.scenarioId())
+			.map(entity -> ScenarioTelemetryAggregate.fromEntity(entity, objectMapper))
+			.orElseGet(() -> new ScenarioTelemetryAggregate(summary.scenarioId()));
+		aggregate.record(summary);
+		telemetryRepository.save(aggregate.toEntity(objectMapper));
 	}
 
 	public ScenarioAnalyticsSnapshot scenarioAnalytics(UUID scenarioId) {
-		ScenarioTelemetryAggregate aggregate = analyticsByScenario.get(scenarioId);
-		if (aggregate == null) {
-			return ScenarioAnalyticsSnapshot.empty(scenarioId);
-		}
-		return aggregate.snapshot();
+		return telemetryRepository
+			.findById(scenarioId)
+			.map(entity -> ScenarioTelemetryAggregate.fromEntity(entity, objectMapper))
+			.map(ScenarioTelemetryAggregate::snapshot)
+			.orElseGet(() -> ScenarioAnalyticsSnapshot.empty(scenarioId));
 	}
 }

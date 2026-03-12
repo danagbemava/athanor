@@ -20,7 +20,7 @@ class ScenarioServiceTests {
 
 	@BeforeEach
 	void setUp() {
-		service = new ScenarioService(new ScenarioGraphValidator(), new ObjectMapper());
+		service = ScenarioServiceTestFactory.create(new ObjectMapper());
 	}
 
 	@Test

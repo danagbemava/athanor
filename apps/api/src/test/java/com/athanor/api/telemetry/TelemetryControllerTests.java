@@ -9,6 +9,7 @@ import com.athanor.api.scenario.ScenarioController;
 import com.athanor.api.scenario.ScenarioExceptionHandler;
 import com.athanor.api.scenario.ScenarioGraphValidator;
 import com.athanor.api.scenario.ScenarioService;
+import com.athanor.api.scenario.ScenarioServiceTestFactory;
 import com.athanor.api.simulation.SimulationService;
 import java.time.Instant;
 import java.util.List;
@@ -31,11 +32,8 @@ class TelemetryControllerTests {
 	@BeforeEach
 	void setUp() {
 		objectMapper = new ObjectMapper();
-		telemetryService = new TelemetryService();
-		ScenarioService scenarioService = new ScenarioService(
-			new ScenarioGraphValidator(),
-			objectMapper
-		);
+		telemetryService = TelemetryServiceTestFactory.create(objectMapper);
+		ScenarioService scenarioService = ScenarioServiceTestFactory.create(objectMapper);
 
 		mockMvc = MockMvcBuilders
 			.standaloneSetup(

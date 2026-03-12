@@ -9,6 +9,7 @@ import com.athanor.api.compiler.FilesystemBundleStore;
 import com.athanor.api.compiler.WorkerExecutionRequestFactory;
 import com.athanor.api.scenario.ScenarioGraphValidator;
 import com.athanor.api.scenario.ScenarioService;
+import com.athanor.api.scenario.ScenarioServiceTestFactory;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -30,7 +31,7 @@ class WorkerCliSimulationBatchExecutorTests {
 	@BeforeEach
 	void setUp() {
 		ObjectMapper objectMapper = new ObjectMapper();
-		scenarioService = new ScenarioService(new ScenarioGraphValidator(), objectMapper);
+		scenarioService = ScenarioServiceTestFactory.create(objectMapper);
 		compilerService = new CompilerService(
 			scenarioService,
 			new ScenarioGraphValidator(),
