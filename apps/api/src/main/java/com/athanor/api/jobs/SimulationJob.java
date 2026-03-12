@@ -5,6 +5,7 @@ import com.athanor.api.simulation.SimulationService;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
+import tools.jackson.databind.ObjectMapper;
 
 final class SimulationJob {
 
@@ -27,15 +28,73 @@ final class SimulationJob {
 	private volatile String bundleHash;
 
 	SimulationJob(UUID runId, UUID scenarioId, SimulationService.SimulationRequest request) {
+		this(runId, scenarioId, request, Instant.now(), request.runCount(), "pending", 0, 0, false, null, null, null, null, null, null, null);
+	}
+
+	private SimulationJob(
+		UUID runId,
+		UUID scenarioId,
+		SimulationService.SimulationRequest request,
+		Instant createdAt,
+		int totalRuns,
+		String status,
+		int completedRuns,
+		int attempts,
+		boolean deadLettered,
+		String error,
+		Instant startedAt,
+		Instant completedAt,
+		SimulationService.SimulationSummary summary,
+		UUID versionId,
+		Integer versionNumber,
+		String bundleHash
+	) {
 		this.runId = runId;
 		this.scenarioId = scenarioId;
 		this.request = request;
-		this.createdAt = Instant.now();
-		this.totalRuns = request.runCount();
-		this.status = "pending";
-		this.completedRuns = 0;
-		this.attempts = 0;
-		this.deadLettered = false;
+		this.createdAt = createdAt;
+		this.totalRuns = totalRuns;
+		this.status = status;
+		this.completedRuns = completedRuns;
+		this.attempts = attempts;
+		this.deadLettered = deadLettered;
+		this.error = error;
+		this.startedAt = startedAt;
+		this.completedAt = completedAt;
+		this.summary = summary;
+		this.versionId = versionId;
+		this.versionNumber = versionNumber;
+		this.bundleHash = bundleHash;
+	}
+
+	static SimulationJob fromEntity(
+		SimulationJobEntity entity,
+		ObjectMapper objectMapper
+	) {
+		return new SimulationJob(
+			entity.runId(),
+			entity.scenarioId(),
+			readJson(objectMapper, entity.requestJson(), SimulationService.SimulationRequest.class),
+			entity.createdAt(),
+			entity.totalRuns(),
+			entity.status(),
+			entity.completedRuns(),
+			entity.attempts(),
+			entity.deadLettered(),
+			entity.errorMessage(),
+			entity.startedAt(),
+			entity.completedAt(),
+			entity.summaryJson() == null
+				? null
+				: readJson(
+					objectMapper,
+					entity.summaryJson(),
+					SimulationService.SimulationSummary.class
+				),
+			entity.versionId(),
+			entity.versionNumber(),
+			entity.bundleHash()
+		);
 	}
 
 	UUID runId() {
@@ -142,5 +201,46 @@ final class SimulationJob {
 
 	String bundleHash() {
 		return bundleHash;
+	}
+
+	SimulationJobEntity toEntity(ObjectMapper objectMapper) {
+		return new SimulationJobEntity(
+			runId,
+			scenarioId,
+			writeJson(objectMapper, request),
+			createdAt,
+			totalRuns,
+			status,
+			completedRuns,
+			attempts,
+			deadLettered,
+			error,
+			startedAt,
+			completedAt,
+			summary == null ? null : writeJson(objectMapper, summary),
+			versionId,
+			versionNumber,
+			bundleHash
+		);
+	}
+
+	private static String writeJson(ObjectMapper objectMapper, Object value) {
+		try {
+			return objectMapper.writeValueAsString(value);
+		} catch (RuntimeException exception) {
+			throw new IllegalStateException("failed to serialize simulation job", exception);
+		}
+	}
+
+	private static <T> T readJson(
+		ObjectMapper objectMapper,
+		String json,
+		Class<T> type
+	) {
+		try {
+			return objectMapper.readValue(json, type);
+		} catch (RuntimeException exception) {
+			throw new IllegalStateException("failed to deserialize simulation job", exception);
+		}
 	}
 }

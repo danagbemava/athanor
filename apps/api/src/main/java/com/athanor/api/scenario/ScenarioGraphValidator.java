@@ -194,6 +194,7 @@ public class ScenarioGraphValidator {
 			return;
 		}
 
+		Set<String> seenTargets = expectsWeight ? new LinkedHashSet<>() : null;
 		for (int index = 0; index < optionList.size(); index++) {
 			Object rawOption = optionList.get(index);
 			if (!(rawOption instanceof Map<?, ?> optionRaw)) {
@@ -208,6 +209,12 @@ public class ScenarioGraphValidator {
 					"node '" + sourceNodeId + "' option at index " + index + " is missing target (`to`/`next_node_id`)"
 				));
 				continue;
+			}
+			if (expectsWeight && !seenTargets.add(target)) {
+				errors.add(error(
+					"chance_destinations",
+					"chance node '" + sourceNodeId + "' has duplicate destination '" + target + "'"
+				));
 			}
 
 			Double weight = readWeight(option);

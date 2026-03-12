@@ -2,9 +2,11 @@ package com.athanor.api.optimization;
 
 import com.athanor.api.compiler.CompilerService;
 import com.athanor.api.compiler.BundleRetentionClass;
+import com.athanor.api.scenario.ScenarioGraphValidator;
 import com.athanor.api.scenario.ScenarioService;
 import com.athanor.api.simulation.SimulationBatchExecutor;
 import com.athanor.api.simulation.SimulationService;
+import jakarta.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -14,11 +16,10 @@ import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.springframework.beans.factory.DisposableBean;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
@@ -32,23 +33,40 @@ public class OptimizationService implements DisposableBean {
 	private static final double CONVERGENCE_THRESHOLD = 0.05d;
 
 	private final ScenarioService scenarioService;
+	private final ScenarioGraphValidator scenarioGraphValidator;
 	private final CompilerService compilerService;
 	private final SimulationBatchExecutor simulationBatchExecutor;
 	private final ObjectMapper objectMapper;
+	private final OptimizationJobEntityJpaRepository jobRepository;
 	private final ExecutorService executor;
-	private final ConcurrentMap<UUID, OptimizationJob> jobs = new ConcurrentHashMap<>();
 
+	@Autowired
 	public OptimizationService(
 		ScenarioService scenarioService,
+		ScenarioGraphValidator scenarioGraphValidator,
 		CompilerService compilerService,
 		SimulationBatchExecutor simulationBatchExecutor,
-		ObjectMapper objectMapper
+		ObjectMapper objectMapper,
+		OptimizationJobEntityJpaRepository jobRepository
 	) {
 		this.scenarioService = scenarioService;
+		this.scenarioGraphValidator = scenarioGraphValidator;
 		this.compilerService = compilerService;
 		this.simulationBatchExecutor = simulationBatchExecutor;
 		this.objectMapper = objectMapper;
+		this.jobRepository = jobRepository;
 		this.executor = Executors.newFixedThreadPool(Math.max(1, Runtime.getRuntime().availableProcessors() / 4));
+	}
+
+	@PostConstruct
+	void recoverIncompleteJobs() {
+		for (OptimizationJobEntity stored : jobRepository.findByStatusIn(
+			List.of("pending", "running")
+		)) {
+			OptimizationJob job = OptimizationJob.fromEntity(stored, objectMapper);
+			job.markFailed(new IllegalStateException("optimization interrupted by api restart"));
+			save(job);
+		}
 	}
 
 	public SubmittedOptimizationJob submitOptimizationJob(OptimizationRequest request) {
@@ -68,7 +86,7 @@ public class OptimizationService implements DisposableBean {
 			command.runsPerIteration(),
 			command.strategy()
 		);
-		jobs.put(job.jobId(), job);
+		save(job);
 		executor.submit(() -> process(job, latestVersion.graph()));
 		return new SubmittedOptimizationJob(
 			job.jobId(),
@@ -81,18 +99,11 @@ public class OptimizationService implements DisposableBean {
 	}
 
 	public OptimizationJobSnapshot getOptimizationJob(UUID jobId) {
-		OptimizationJob job = jobs.get(jobId);
-		if (job == null) {
-			throw new OptimizationJobNotFoundException("jobId not found");
-		}
-		return job.snapshot();
+		return job(jobId).snapshot();
 	}
 
 	public ScenarioService.ScenarioSnapshot applyOptimizedParameters(UUID jobId) {
-		OptimizationJob job = jobs.get(jobId);
-		if (job == null) {
-			throw new OptimizationJobNotFoundException("jobId not found");
-		}
+		OptimizationJob job = job(jobId);
 		if (!Objects.equals(job.status(), "completed")) {
 			throw new IllegalArgumentException("optimization job has not completed");
 		}
@@ -107,6 +118,7 @@ public class OptimizationService implements DisposableBean {
 			new ScenarioService.CreateVersionCommand(null, null, graph)
 		);
 		job.markApplied(snapshot.version().id(), snapshot.version().number());
+		save(job);
 		return snapshot;
 	}
 
@@ -117,6 +129,7 @@ public class OptimizationService implements DisposableBean {
 
 	private void process(OptimizationJob job, Map<String, Object> sourceGraph) {
 		job.markRunning();
+		save(job);
 
 		try {
 			Map<String, Object> baseGraph = deepCopyGraph(sourceGraph);
@@ -137,16 +150,31 @@ public class OptimizationService implements DisposableBean {
 					iteration
 				);
 				job.recordIteration(iteration, candidate);
+				save(job);
 				if (candidate.score() < CONVERGENCE_THRESHOLD) {
 					job.markCompleted(true);
+					save(job);
 					return;
 				}
 			}
 
 			job.markCompleted(false);
+			save(job);
 		} catch (RuntimeException exception) {
 			job.markFailed(exception);
+			save(job);
 		}
+	}
+
+	private OptimizationJob job(UUID jobId) {
+		return jobRepository
+			.findById(jobId)
+			.map(entity -> OptimizationJob.fromEntity(entity, objectMapper))
+			.orElseThrow(() -> new OptimizationJobNotFoundException("jobId not found"));
+	}
+
+	private void save(OptimizationJob job) {
+		jobRepository.save(job.toEntity(objectMapper));
 	}
 
 	private OptimizationCandidate evaluateCandidate(
@@ -262,6 +290,18 @@ public class OptimizationService implements DisposableBean {
 	}
 
 	private void validateSearchSpace(Map<String, Object> graph) {
+		var validation = scenarioGraphValidator.validate(graph);
+		if (!validation.valid()) {
+			String details = validation
+				.errors()
+				.stream()
+				.map(message -> message.message())
+				.reduce((left, right) -> left + "; " + right)
+				.orElse("invalid scenario graph");
+			throw new IllegalArgumentException(
+				"scenario graph validation failed: " + details
+			);
+		}
 		if (extractChanceNodes(graph).isEmpty()) {
 			throw new IllegalArgumentException(
 				"scenario graph must contain at least one ChanceNode to optimize"

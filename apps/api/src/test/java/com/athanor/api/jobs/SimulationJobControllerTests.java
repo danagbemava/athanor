@@ -11,6 +11,7 @@ import com.athanor.api.scenario.ScenarioController;
 import com.athanor.api.scenario.ScenarioExceptionHandler;
 import com.athanor.api.scenario.ScenarioGraphValidator;
 import com.athanor.api.scenario.ScenarioService;
+import com.athanor.api.scenario.ScenarioServiceTestFactory;
 import com.athanor.api.simulation.LocalSimulationBatchExecutor;
 import com.athanor.api.simulation.SimulationBatchExecutor;
 import com.athanor.api.simulation.SimulationController;
@@ -18,6 +19,7 @@ import com.athanor.api.simulation.SimulationExceptionHandler;
 import com.athanor.api.simulation.SimulationService;
 import com.athanor.api.simulation.WorkerExecutionSummaryMapper;
 import com.athanor.api.telemetry.TelemetryService;
+import com.athanor.api.telemetry.TelemetryServiceTestFactory;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
@@ -45,10 +47,7 @@ class SimulationJobControllerTests {
 	@BeforeEach
 	void setUp() {
 		objectMapper = new ObjectMapper();
-		ScenarioService scenarioService = new ScenarioService(
-			new ScenarioGraphValidator(),
-			objectMapper
-		);
+		ScenarioService scenarioService = ScenarioServiceTestFactory.create(objectMapper);
 		CompilerService compilerService = new CompilerService(
 			scenarioService,
 			new ScenarioGraphValidator(),
@@ -59,7 +58,7 @@ class SimulationJobControllerTests {
 		SimulationBatchExecutor simulationBatchExecutor = new LocalSimulationBatchExecutor(
 			simulationService
 		);
-		TelemetryService telemetryService = new TelemetryService();
+		TelemetryService telemetryService = TelemetryServiceTestFactory.create(objectMapper);
 		JobService jobService = new JobService(
 			compilerService,
 			simulationService,
@@ -67,6 +66,8 @@ class SimulationJobControllerTests {
 			new NoopWorkerRuntimeDispatcher(),
 			new WorkerExecutionSummaryMapper(objectMapper),
 			telemetryService,
+			SimulationJobRepositoryTestFactory.create(),
+			objectMapper,
 			new SimpleMeterRegistry()
 		);
 

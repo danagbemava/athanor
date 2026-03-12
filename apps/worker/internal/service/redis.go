@@ -36,11 +36,17 @@ type ObjectStoreConfig struct {
 	UseSSL    bool
 }
 
+const runStatusKeyPrefix = "athanor.worker.run.status:"
+
 func Serve(config RedisConfig) error {
 	if config.Address == "" {
 		return errors.New("redis address is required")
 	}
-	client := redis.NewClient(&redis.Options{Addr: config.Address})
+	client := redis.NewClient(&redis.Options{
+		Addr:         config.Address,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 30 * time.Second,
+	})
 	bundleReader, err := newS3BundleReader(config.ObjectStore)
 	if err != nil {
 		return err
@@ -81,6 +87,13 @@ func Serve(config RedisConfig) error {
 				dispatchRequest, err := dispatchRequestFromMessage(message)
 				if err != nil {
 					_ = publisher.PublishFailure(fmt.Sprint(message.Values["run_id"]), err.Error())
+					_ = client.XAck(context, config.DispatchStream, config.DispatchConsumerGrp, message.ID).Err()
+					continue
+				}
+				if completed, err := hasTerminalRunState(context, client, dispatchRequest.RunID); err != nil {
+					return fmt.Errorf("failed to check run status: %w", err)
+				} else if completed {
+					_ = client.XAck(context, config.DispatchStream, config.DispatchConsumerGrp, message.ID).Err()
 					continue
 				}
 				if err := runtime.ProcessDispatch(dispatchRequest, publisher); err == nil {
@@ -117,6 +130,29 @@ func dispatchRequestFromMessage(message redis.XMessage) (DispatchRequest, error)
 	}, nil
 }
 
+func hasTerminalRunState(
+	ctx context.Context,
+	client *redis.Client,
+	runID string,
+) (bool, error) {
+	status, err := client.Get(ctx, runStatusKey(runID)).Result()
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return false, nil
+		}
+		return false, err
+	}
+	return isTerminalRunStatus(status), nil
+}
+
+func isTerminalRunStatus(status string) bool {
+	return status == "completed" || status == "failed"
+}
+
+func runStatusKey(runID string) string {
+	return runStatusKeyPrefix + runID
+}
+
 type redisEventPublisher struct {
 	client *redis.Client
 	stream string
@@ -138,7 +174,7 @@ func (publisher redisEventPublisher) PublishCompletion(runID string, result cont
 	if err != nil {
 		return err
 	}
-	return publisher.publish(runID, "complete", payload)
+	return publisher.publish(runID, "complete", payload, "completed")
 }
 
 func (publisher redisEventPublisher) PublishFailure(runID string, message string) error {
@@ -146,11 +182,12 @@ func (publisher redisEventPublisher) PublishFailure(runID string, message string
 	if err != nil {
 		return err
 	}
-	return publisher.publish(runID, "failed", payload)
+	return publisher.publish(runID, "failed", payload, "failed")
 }
 
-func (publisher redisEventPublisher) publish(runID string, eventType string, payload []byte) error {
-	return publisher.client.XAdd(
+func (publisher redisEventPublisher) publish(runID string, eventType string, payload []byte, terminalStatus ...string) error {
+	pipe := publisher.client.TxPipeline()
+	pipe.XAdd(
 		context.Background(),
 		&redis.XAddArgs{
 			Stream: publisher.stream,
@@ -160,7 +197,17 @@ func (publisher redisEventPublisher) publish(runID string, eventType string, pay
 				"payload_json": string(payload),
 			},
 		},
-	).Err()
+	)
+	if len(terminalStatus) > 0 {
+		pipe.Set(
+			context.Background(),
+			runStatusKey(runID),
+			terminalStatus[0],
+			24*time.Hour,
+		)
+	}
+	_, err := pipe.Exec(context.Background())
+	return err
 }
 
 type s3BundleReader struct {

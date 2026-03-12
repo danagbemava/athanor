@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.athanor.api.scenario.ScenarioGraphValidator;
 import com.athanor.api.scenario.ScenarioService;
+import com.athanor.api.scenario.ScenarioServiceTestFactory;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.networknt.schema.InputFormat;
 import com.networknt.schema.JsonSchema;
@@ -39,7 +40,7 @@ class CompilerServiceTests {
 	@BeforeEach
 	void setUp() {
 		objectMapper = new ObjectMapper();
-		scenarioService = new ScenarioService(new ScenarioGraphValidator(), objectMapper);
+		scenarioService = ScenarioServiceTestFactory.create(objectMapper);
 		compilerService = new CompilerService(
 			scenarioService,
 			new ScenarioGraphValidator(),

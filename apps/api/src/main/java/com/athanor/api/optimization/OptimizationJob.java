@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
+import tools.jackson.databind.ObjectMapper;
 
 final class OptimizationJob {
 
@@ -40,6 +41,54 @@ final class OptimizationJob {
 		int runsPerIteration,
 		String strategy
 	) {
+		this(
+			jobId,
+			scenarioId,
+			baseVersionId,
+			baseVersionNumber,
+			targetDistribution,
+			maxIterations,
+			runsPerIteration,
+			strategy,
+			Instant.now(),
+			"pending",
+			0,
+			Double.POSITIVE_INFINITY,
+			false,
+			null,
+			null,
+			null,
+			null,
+			Map.of(),
+			null,
+			null,
+			null
+		);
+	}
+
+	private OptimizationJob(
+		UUID jobId,
+		UUID scenarioId,
+		UUID baseVersionId,
+		int baseVersionNumber,
+		Map<String, Double> targetDistribution,
+		int maxIterations,
+		int runsPerIteration,
+		String strategy,
+		Instant createdAt,
+		String status,
+		int iterationsCompleted,
+		double bestScore,
+		boolean converged,
+		String error,
+		Instant startedAt,
+		Instant completedAt,
+		OptimizationParameters bestParameters,
+		Map<String, Double> bestOutcomeDistribution,
+		Map<String, Object> bestGraph,
+		UUID appliedVersionId,
+		Integer appliedVersionNumber
+	) {
 		this.jobId = jobId;
 		this.scenarioId = scenarioId;
 		this.baseVersionId = baseVersionId;
@@ -48,10 +97,52 @@ final class OptimizationJob {
 		this.maxIterations = maxIterations;
 		this.runsPerIteration = runsPerIteration;
 		this.strategy = strategy;
-		this.createdAt = Instant.now();
-		this.status = "pending";
-		this.bestScore = Double.POSITIVE_INFINITY;
-		this.bestOutcomeDistribution = Map.of();
+		this.createdAt = createdAt;
+		this.status = status;
+		this.iterationsCompleted = iterationsCompleted;
+		this.bestScore = bestScore;
+		this.converged = converged;
+		this.error = error;
+		this.startedAt = startedAt;
+		this.completedAt = completedAt;
+		this.bestParameters = bestParameters;
+		this.bestOutcomeDistribution = Map.copyOf(bestOutcomeDistribution);
+		this.bestGraph = bestGraph == null ? null : copyGraph(bestGraph);
+		this.appliedVersionId = appliedVersionId;
+		this.appliedVersionNumber = appliedVersionNumber;
+	}
+
+	static OptimizationJob fromEntity(
+		OptimizationJobEntity entity,
+		ObjectMapper objectMapper
+	) {
+		return new OptimizationJob(
+			entity.jobId(),
+			entity.scenarioId(),
+			entity.baseVersionId(),
+			entity.baseVersionNumber(),
+			readJson(objectMapper, entity.targetDistributionJson(), Map.class),
+			entity.maxIterations(),
+			entity.runsPerIteration(),
+			entity.strategy(),
+			entity.createdAt(),
+			entity.status(),
+			entity.iterationsCompleted(),
+			entity.bestScore(),
+			entity.converged(),
+			entity.errorMessage(),
+			entity.startedAt(),
+			entity.completedAt(),
+			entity.bestParametersJson() == null
+				? null
+				: readJson(objectMapper, entity.bestParametersJson(), OptimizationParameters.class),
+			readJson(objectMapper, entity.bestOutcomeDistributionJson(), Map.class),
+			entity.bestGraphJson() == null
+				? null
+				: readJson(objectMapper, entity.bestGraphJson(), Map.class),
+			entity.appliedVersionId(),
+			entity.appliedVersionNumber()
+		);
 	}
 
 	UUID jobId() {
@@ -157,5 +248,51 @@ final class OptimizationJob {
 		Map<String, Object> copy = new LinkedHashMap<>();
 		graph.forEach(copy::put);
 		return copy;
+	}
+
+	synchronized OptimizationJobEntity toEntity(ObjectMapper objectMapper) {
+		return new OptimizationJobEntity(
+			jobId,
+			scenarioId,
+			baseVersionId,
+			baseVersionNumber,
+			writeJson(objectMapper, targetDistribution),
+			maxIterations,
+			runsPerIteration,
+			strategy,
+			createdAt,
+			status,
+			iterationsCompleted,
+			bestScore,
+			converged,
+			error,
+			startedAt,
+			completedAt,
+			bestParameters == null ? null : writeJson(objectMapper, bestParameters),
+			writeJson(objectMapper, bestOutcomeDistribution),
+			bestGraph == null ? null : writeJson(objectMapper, copyGraph(bestGraph)),
+			appliedVersionId,
+			appliedVersionNumber
+		);
+	}
+
+	private static String writeJson(ObjectMapper objectMapper, Object value) {
+		try {
+			return objectMapper.writeValueAsString(value);
+		} catch (RuntimeException exception) {
+			throw new IllegalStateException("failed to serialize optimization job", exception);
+		}
+	}
+
+	private static <T> T readJson(
+		ObjectMapper objectMapper,
+		String json,
+		Class<T> type
+	) {
+		try {
+			return objectMapper.readValue(json, type);
+		} catch (RuntimeException exception) {
+			throw new IllegalStateException("failed to deserialize optimization job", exception);
+		}
 	}
 }

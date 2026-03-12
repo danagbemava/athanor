@@ -77,6 +77,25 @@ func TestExecuteRequestReportsProgress(t *testing.T) {
 	}
 }
 
+func TestPublisherProgressReporterThrottlesLargeRunCounts(t *testing.T) {
+	publisher := &stubPublisher{}
+	reporter := &publisherProgressReporter{
+		runID:     "run-1",
+		publisher: publisher,
+		interval:  progressInterval(5000),
+	}
+
+	for completedRuns := 1; completedRuns <= 5000; completedRuns += 1 {
+		if err := reporter.RunCompleted(completedRuns, 5000); err != nil {
+			t.Fatalf("progress reporter failed: %v", err)
+		}
+	}
+
+	if len(publisher.progress) != 101 {
+		t.Fatalf("expected 101 throttled progress events, got %d", len(publisher.progress))
+	}
+}
+
 func TestDispatchRequestFromMessageValidatesPayload(t *testing.T) {
 	_, err := dispatchRequestFromMessage(redis.XMessage{
 		Values: map[string]any{

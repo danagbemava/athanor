@@ -8,6 +8,7 @@ import com.athanor.api.compiler.CompilerService;
 import com.athanor.api.compiler.FilesystemBundleStore;
 import com.athanor.api.scenario.ScenarioGraphValidator;
 import com.athanor.api.scenario.ScenarioService;
+import com.athanor.api.scenario.ScenarioServiceTestFactory;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -227,10 +228,7 @@ class SimulationServiceTests {
 
 	private TestFixture fixture() {
 		ObjectMapper objectMapper = new ObjectMapper();
-		ScenarioService scenarioService = new ScenarioService(
-			new ScenarioGraphValidator(),
-			objectMapper
-		);
+		ScenarioService scenarioService = ScenarioServiceTestFactory.create(objectMapper);
 		CompilerService compilerService = new CompilerService(
 			scenarioService,
 			new ScenarioGraphValidator(),
