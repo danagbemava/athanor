@@ -1,6 +1,6 @@
 package com.athanor.api.jobs;
 
-import com.athanor.api.compiler.WorkerExecutionResult;
+import com.athanor.api.simulation.WorkerExecutionCompletionPayload;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
@@ -29,7 +29,7 @@ public class WorkerRuntimeEventHandler {
 			}
 			case "complete" -> jobService.completeWorkerJob(
 				event.runId(),
-				objectMapper.readValue(event.payloadJson(), WorkerExecutionResult.class)
+				objectMapper.readValue(event.payloadJson(), WorkerExecutionCompletionPayload.class)
 			);
 			case "failed" -> {
 				JsonNode payload = objectMapper.readTree(event.payloadJson());

@@ -70,6 +70,60 @@ public class WorkerExecutionSummaryMapper {
 		);
 	}
 
+	public SimulationService.SimulationSummary toSimulationSummary(
+		UUID scenarioId,
+		UUID versionId,
+		Integer versionNumber,
+		String bundleHash,
+		WorkerExecutionCompletionPayload payload
+	) {
+		return new SimulationService.SimulationSummary(
+			scenarioId,
+			versionId,
+			versionNumber == null ? 0 : versionNumber,
+			bundleHash,
+			payload.agentVersion(),
+			payload.runCount(),
+			payload.seedStart(),
+			payload.maxSteps(),
+			payload.averageSteps(),
+			payload.outcomeCounts() == null ? Map.of() : new LinkedHashMap<>(payload.outcomeCounts()),
+			List.of(),
+			payload.completedAt() == null ? Instant.now() : payload.completedAt()
+		);
+	}
+
+	public SimulationRunPage toSimulationRunPage(
+		WorkerExecutionResult executionResult,
+		int page,
+		int pageSize
+	) {
+		int offset = Math.max(page, 0) * Math.max(pageSize, 1);
+		if (offset >= executionResult.runs().size()) {
+			return new SimulationRunPage(page, pageSize, executionResult.runs().size(), List.of());
+		}
+
+		int end = Math.min(executionResult.runs().size(), offset + pageSize);
+		List<SimulationService.SimulationRun> runs = new ArrayList<>();
+		for (int index = offset; index < end; index += 1) {
+			WorkerExecutionResult.WorkerExecutionRunResult run = executionResult.runs().get(index);
+			List<SimulationService.SimulationTraceEvent> trace = traceEvents(run.trace());
+			Map<String, Object> finalState = trace.isEmpty()
+				? Map.of()
+				: new LinkedHashMap<>(trace.get(trace.size() - 1).stateAfter());
+			runs.add(
+				new SimulationService.SimulationRun(
+					run.seed(),
+					run.outcome(),
+					run.stepsTaken(),
+					finalState,
+					trace
+				)
+			);
+		}
+		return new SimulationRunPage(page, pageSize, executionResult.runs().size(), runs);
+	}
+
 	private List<SimulationService.SimulationTraceEvent> traceEvents(
 		List<Map<String, Object>> rawTrace
 	) {

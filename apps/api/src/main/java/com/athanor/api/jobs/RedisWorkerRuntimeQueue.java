@@ -75,11 +75,16 @@ public class RedisWorkerRuntimeQueue implements WorkerRuntimeQueue {
 		if (records == null || records.isEmpty()) {
 			return List.of();
 		}
-		return records
-			.stream()
-			.map(this::toEvent)
-			.filter(event -> !"bootstrap".equals(event.type()))
-			.toList();
+		List<WorkerRuntimeEventMessage> events = new java.util.ArrayList<>();
+		for (MapRecord<String, Object, Object> record : records) {
+			Object type = record.getValue().get("type");
+			if ("bootstrap".equals(String.valueOf(type))) {
+				acknowledgeEvent(record.getId().getValue());
+				continue;
+			}
+			events.add(toEvent(record));
+		}
+		return events;
 	}
 
 	@Override

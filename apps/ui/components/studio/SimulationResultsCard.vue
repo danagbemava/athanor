@@ -16,7 +16,11 @@ const {
     simulationJob,
     simulationProgress,
     simulationResponse,
+    simulationTracePage,
+    isLoadingSimulationTracePage,
+    simulationTracePageError,
     simulationRunCount,
+    fetchSimulationTracePage,
     formatTimestamp,
     formatPayload,
     simulationStatusTone,
@@ -30,10 +34,9 @@ const sortedOutcomes = computed(() => {
 const tracePageSize = 8;
 const selectedRunSeed = ref<string>("");
 const selectedStepIndex = ref(0);
-const selectedRunPage = ref(0);
 
 const traceableRuns = computed(() => {
-    return simulationResponse.value?.runs ?? [];
+    return simulationTracePage.value?.runs ?? simulationResponse.value?.runs ?? [];
 });
 
 const selectedRun = computed(() => {
@@ -46,22 +49,22 @@ const selectedRun = computed(() => {
         runs.find((run) => String(run.seed) === selectedRunSeed.value) ?? runs[0]
     );
 });
-const traceRunPageCount = computed(() =>
-    Math.max(1, Math.ceil(traceableRuns.value.length / tracePageSize)),
-);
-const paginatedTraceableRuns = computed(() => {
-    const start = selectedRunPage.value * tracePageSize;
-    return traceableRuns.value.slice(start, start + tracePageSize);
+const selectedRunPage = computed(() => simulationTracePage.value?.page ?? 0);
+const traceRunPageCount = computed(() => {
+    const totalRuns = simulationTracePage.value?.totalRuns ?? traceableRuns.value.length;
+    return Math.max(1, Math.ceil(totalRuns / tracePageSize));
 });
 const paginatedTraceRunLabel = computed(() => {
-    if (traceableRuns.value.length === 0) {
+    const page = simulationTracePage.value;
+    const totalRuns = page?.totalRuns ?? traceableRuns.value.length;
+    if (totalRuns === 0) {
         return "0-0";
     }
 
-    const start = selectedRunPage.value * tracePageSize + 1;
+    const start = (page?.page ?? 0) * tracePageSize + 1;
     const end = Math.min(
-        traceableRuns.value.length,
-        (selectedRunPage.value + 1) * tracePageSize,
+        totalRuns,
+        ((page?.page ?? 0) + 1) * tracePageSize,
     );
     return `${start}-${end}`;
 });
@@ -104,7 +107,6 @@ watch(
     traceableRuns,
     (runs) => {
         selectedRunSeed.value = runs[0] ? String(runs[0].seed) : "";
-        selectedRunPage.value = 0;
         selectedStepIndex.value = 0;
     },
     { immediate: true },
@@ -112,13 +114,6 @@ watch(
 
 watch(selectedRunSeed, (nextSeed) => {
     selectedStepIndex.value = 0;
-
-    const selectedIndex = traceableRuns.value.findIndex(
-        (run) => String(run.seed) === nextSeed,
-    );
-    if (selectedIndex >= 0) {
-        selectedRunPage.value = Math.floor(selectedIndex / tracePageSize);
-    }
 });
 
 function nextTraceStep() {
@@ -135,15 +130,20 @@ function previousTraceStep() {
     selectedStepIndex.value = Math.max(selectedStepIndex.value - 1, 0);
 }
 
-function nextTraceRunPage() {
-    selectedRunPage.value = Math.min(
-        selectedRunPage.value + 1,
-        traceRunPageCount.value - 1,
-    );
+async function nextTraceRunPage() {
+    const runId = simulationJob.value?.runId;
+    if (!runId || selectedRunPage.value >= traceRunPageCount.value - 1) {
+        return;
+    }
+    await fetchSimulationTracePage(runId, selectedRunPage.value + 1, tracePageSize);
 }
 
-function previousTraceRunPage() {
-    selectedRunPage.value = Math.max(selectedRunPage.value - 1, 0);
+async function previousTraceRunPage() {
+    const runId = simulationJob.value?.runId;
+    if (!runId || selectedRunPage.value === 0) {
+        return;
+    }
+    await fetchSimulationTracePage(runId, selectedRunPage.value - 1, tracePageSize);
 }
 
 function selectedTraceLabel() {
@@ -358,13 +358,13 @@ function selectedTraceLabel() {
                             <div class="flex flex-wrap items-center justify-between gap-3">
                                 <p class="text-sm font-semibold">
                                     Seeds {{ paginatedTraceRunLabel }} of
-                                    {{ traceableRuns.length }}
+                                    {{ simulationTracePage?.totalRuns ?? traceableRuns.length }}
                                 </p>
                                 <div class="flex flex-wrap items-center gap-2">
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        :disabled="selectedRunPage === 0"
+                                        :disabled="selectedRunPage === 0 || isLoadingSimulationTracePage"
                                         @click="previousTraceRunPage"
                                     >
                                         <ChevronLeft class="mr-1 size-4" />
@@ -374,7 +374,8 @@ function selectedTraceLabel() {
                                         variant="outline"
                                         size="sm"
                                         :disabled="
-                                            selectedRunPage >= traceRunPageCount - 1
+                                            selectedRunPage >= traceRunPageCount - 1 ||
+                                            isLoadingSimulationTracePage
                                         "
                                         @click="nextTraceRunPage"
                                     >
@@ -384,9 +385,23 @@ function selectedTraceLabel() {
                                 </div>
                             </div>
 
+                            <p
+                                v-if="simulationTracePageError"
+                                class="text-sm text-destructive"
+                            >
+                                {{ simulationTracePageError }}
+                            </p>
+
+                            <div
+                                v-if="isLoadingSimulationTracePage"
+                                class="text-sm text-muted-foreground"
+                            >
+                                Loading trace page...
+                            </div>
+
                             <div class="flex gap-2 overflow-x-auto pb-1">
                                 <button
-                                    v-for="run in paginatedTraceableRuns"
+                                    v-for="run in traceableRuns"
                                     :key="run.seed"
                                     type="button"
                                     class="min-w-32 shrink-0 rounded-lg border px-3 py-2 text-left transition-colors sm:min-w-44"

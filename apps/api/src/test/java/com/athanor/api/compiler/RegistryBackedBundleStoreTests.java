@@ -36,7 +36,7 @@ class RegistryBackedBundleStoreTests {
 	private RecordingObjectStore objectStore;
 	private MutableClock clock;
 	private RegistryBackedBundleStore bundleStore;
-	private BundleStorageProperties properties;
+	private com.athanor.api.storage.ObjectStorageProperties properties;
 	private BundleRetentionCleanupService cleanupService;
 
 	@BeforeEach
@@ -44,7 +44,7 @@ class RegistryBackedBundleStoreTests {
 		objectStore = new RecordingObjectStore();
 		clock = new MutableClock(Instant.parse("2026-03-09T12:00:00Z"));
 		bundleStore = new RegistryBackedBundleStore(repository, objectStore, clock);
-		properties = new BundleStorageProperties();
+		properties = new com.athanor.api.storage.ObjectStorageProperties();
 		cleanupService = new BundleRetentionCleanupService(repository, objectStore, properties, clock);
 	}
 

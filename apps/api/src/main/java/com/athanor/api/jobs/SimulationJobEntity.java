@@ -60,6 +60,9 @@ class SimulationJobEntity {
 	@Column(name = "bundle_hash")
 	private String bundleHash;
 
+	@Column(name = "result_key")
+	private String resultKey;
+
 	protected SimulationJobEntity() {}
 
 	SimulationJobEntity(
@@ -78,7 +81,8 @@ class SimulationJobEntity {
 		String summaryJson,
 		UUID versionId,
 		Integer versionNumber,
-		String bundleHash
+		String bundleHash,
+		String resultKey
 	) {
 		this.runId = runId;
 		this.scenarioId = scenarioId;
@@ -96,6 +100,7 @@ class SimulationJobEntity {
 		this.versionId = versionId;
 		this.versionNumber = versionNumber;
 		this.bundleHash = bundleHash;
+		this.resultKey = resultKey;
 	}
 
 	UUID runId() { return runId; }
@@ -114,4 +119,5 @@ class SimulationJobEntity {
 	UUID versionId() { return versionId; }
 	Integer versionNumber() { return versionNumber; }
 	String bundleHash() { return bundleHash; }
+	String resultKey() { return resultKey; }
 }

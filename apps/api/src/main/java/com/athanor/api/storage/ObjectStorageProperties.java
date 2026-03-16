@@ -1,10 +1,10 @@
-package com.athanor.api.compiler;
+package com.athanor.api.storage;
 
 import java.nio.file.Path;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "athanor.bundle")
-public class BundleStorageProperties {
+public class ObjectStorageProperties {
 
 	private final Storage storage = new Storage();
 	private final Retention retention = new Retention();

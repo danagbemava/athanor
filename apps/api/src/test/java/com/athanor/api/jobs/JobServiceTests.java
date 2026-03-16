@@ -127,6 +127,7 @@ class JobServiceTests {
 			simulationService
 		);
 		TelemetryService telemetryService = TelemetryServiceTestFactory.create(objectMapper);
+		SimulationResultStore simulationResultStore = SimulationResultStoreTestFactory.create();
 		JobService jobService = new JobService(
 			compilerService,
 			simulationService,
@@ -134,6 +135,7 @@ class JobServiceTests {
 			new NoopWorkerRuntimeDispatcher(),
 			new WorkerExecutionSummaryMapper(objectMapper),
 			telemetryService,
+			simulationResultStore,
 			SimulationJobRepositoryTestFactory.create(),
 			objectMapper,
 			new SimpleMeterRegistry()

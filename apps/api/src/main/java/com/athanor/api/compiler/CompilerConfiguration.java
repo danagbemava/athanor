@@ -1,5 +1,6 @@
 package com.athanor.api.compiler;
 
+import com.athanor.api.storage.ObjectStorageProperties;
 import java.nio.file.Path;
 import java.time.Clock;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -9,7 +10,7 @@ import org.springframework.context.annotation.Configuration;
 import io.minio.MinioClient;
 
 @Configuration
-@EnableConfigurationProperties(BundleStorageProperties.class)
+@EnableConfigurationProperties(ObjectStorageProperties.class)
 public class CompilerConfiguration {
 
 	@Bean
@@ -18,11 +19,11 @@ public class CompilerConfiguration {
 	}
 
 	@Bean
-	BundleObjectStore bundleObjectStore(BundleStorageProperties properties) {
+	BundleObjectStore bundleObjectStore(ObjectStorageProperties properties) {
 		if ("filesystem".equalsIgnoreCase(properties.getStorage().getMode())) {
 			return new FilesystemBundleObjectStore(properties.getStorage().getFilesystemRoot());
 		}
-		BundleStorageProperties.S3 s3 = properties.getStorage().getS3();
+		ObjectStorageProperties.S3 s3 = properties.getStorage().getS3();
 		MinioClient client = MinioClient
 			.builder()
 			.endpoint(s3.getEndpoint())
@@ -46,7 +47,7 @@ public class CompilerConfiguration {
 	BundleRetentionCleanupService bundleRetentionCleanupService(
 		BundleRegistryRepository registryRepository,
 		BundleObjectStore objectStore,
-		BundleStorageProperties properties,
+		ObjectStorageProperties properties,
 		Clock compilerClock
 	) {
 		return new BundleRetentionCleanupService(
