@@ -1,4 +1,4 @@
-package com.athanor.api.jobs;
+package com.athanor.api.simulation;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Instant;

@@ -1,5 +1,6 @@
 package com.athanor.api.compiler;
 
+import com.athanor.api.storage.ObjectStorageProperties;
 import java.io.IOException;
 import java.time.Clock;
 import java.time.Instant;
@@ -18,13 +19,13 @@ public class BundleRetentionCleanupService {
 
 	private final BundleRegistryRepository registryRepository;
 	private final BundleObjectStore objectStore;
-	private final BundleStorageProperties properties;
+	private final ObjectStorageProperties properties;
 	private final Clock clock;
 
 	public BundleRetentionCleanupService(
 		BundleRegistryRepository registryRepository,
 		BundleObjectStore objectStore,
-		BundleStorageProperties properties,
+		ObjectStorageProperties properties,
 		Clock clock
 	) {
 		this.registryRepository = registryRepository;

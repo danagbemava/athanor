@@ -1,5 +1,6 @@
 package com.athanor.api.jobs;
 
+import com.athanor.api.simulation.WorkerExecutionCompletionPayload;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;

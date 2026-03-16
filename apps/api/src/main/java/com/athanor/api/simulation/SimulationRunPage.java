@@ -1,6 +1,5 @@
-package com.athanor.api.jobs;
+package com.athanor.api.simulation;
 
-import com.athanor.api.simulation.SimulationService;
 import java.util.List;
 
 public record SimulationRunPage(

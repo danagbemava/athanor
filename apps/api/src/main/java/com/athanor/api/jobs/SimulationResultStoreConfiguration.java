@@ -1,6 +1,6 @@
 package com.athanor.api.jobs;
 
-import com.athanor.api.compiler.BundleStorageProperties;
+import com.athanor.api.storage.ObjectStorageProperties;
 import io.minio.GetObjectArgs;
 import io.minio.MinioClient;
 import java.io.IOException;
@@ -14,11 +14,11 @@ import org.springframework.context.annotation.Configuration;
 class SimulationResultStoreConfiguration {
 
 	@Bean
-	SimulationResultStore simulationResultStore(BundleStorageProperties properties) {
+	SimulationResultStore simulationResultStore(ObjectStorageProperties properties) {
 		if ("filesystem".equalsIgnoreCase(properties.getStorage().getMode())) {
 			return new FilesystemSimulationResultStore(properties.getStorage().getFilesystemRoot());
 		}
-		BundleStorageProperties.S3 s3 = properties.getStorage().getS3();
+		ObjectStorageProperties.S3 s3 = properties.getStorage().getS3();
 		MinioClient client = MinioClient
 			.builder()
 			.endpoint(s3.getEndpoint())

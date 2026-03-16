@@ -1,8 +1,6 @@
 package com.athanor.api.simulation;
 
 import com.athanor.api.compiler.WorkerExecutionResult;
-import com.athanor.api.jobs.SimulationRunPage;
-import com.athanor.api.jobs.WorkerExecutionCompletionPayload;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;

@@ -9,6 +9,7 @@ import com.athanor.api.scenario.ScenarioService;
 import com.athanor.api.scenario.ScenarioServiceTestFactory;
 import com.athanor.api.simulation.LocalSimulationBatchExecutor;
 import com.athanor.api.simulation.SimulationService;
+import com.athanor.api.simulation.WorkerExecutionCompletionPayload;
 import com.athanor.api.simulation.WorkerExecutionSummaryMapper;
 import com.athanor.api.telemetry.TelemetryService;
 import com.athanor.api.telemetry.TelemetryServiceTestFactory;
