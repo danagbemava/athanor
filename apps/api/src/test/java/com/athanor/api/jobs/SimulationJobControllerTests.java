@@ -43,6 +43,7 @@ class SimulationJobControllerTests {
 
 	private MockMvc mockMvc;
 	private ObjectMapper objectMapper;
+	private JobService jobService;
 
 	@BeforeEach
 	void setUp() {
@@ -59,13 +60,15 @@ class SimulationJobControllerTests {
 			simulationService
 		);
 		TelemetryService telemetryService = TelemetryServiceTestFactory.create(objectMapper);
-		JobService jobService = new JobService(
+		SimulationResultStore simulationResultStore = SimulationResultStoreTestFactory.create();
+		jobService = new JobService(
 			compilerService,
 			simulationService,
 			simulationBatchExecutor,
 			new NoopWorkerRuntimeDispatcher(),
 			new WorkerExecutionSummaryMapper(objectMapper),
 			telemetryService,
+			simulationResultStore,
 			SimulationJobRepositoryTestFactory.create(),
 			objectMapper,
 			new SimpleMeterRegistry()
@@ -123,6 +126,39 @@ class SimulationJobControllerTests {
 	}
 
 	@Test
+	void traceRunsEndpointReturnsPagedSimulationRuns() throws Exception {
+		UUID scenarioId = createScenario(validGraph());
+
+		MvcResult submitResult = mockMvc
+			.perform(
+				post("/simulate")
+					.contentType(MediaType.APPLICATION_JSON)
+					.content(
+						objectMapper.writeValueAsBytes(
+							Map.of("scenarioId", scenarioId, "runCount", 4, "seedStart", 8)
+						)
+					)
+			)
+			.andExpect(status().isAccepted())
+			.andReturn();
+
+		String runId = objectMapper
+			.readTree(resultBytes(submitResult))
+			.get("runId")
+			.textValue();
+
+		awaitCompletion(UUID.fromString(runId));
+
+		mockMvc
+			.perform(get("/runs/{runId}/trace-runs", runId).param("page", "0").param("pageSize", "2"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.page").value(0))
+			.andExpect(jsonPath("$.pageSize").value(2))
+			.andExpect(jsonPath("$.totalRuns").value(4))
+			.andExpect(jsonPath("$.runs.length()").value(2));
+	}
+
+	@Test
 	void submitSimulationRejectsMissingScenarioId() throws Exception {
 		Map<String, Object> invalidRequest = new LinkedHashMap<>();
 		invalidRequest.put("runCount", 2);
@@ -165,6 +201,18 @@ class SimulationJobControllerTests {
 		return UUID.fromString(
 			objectMapper.readTree(resultBytes(result)).get("scenarioId").textValue()
 		);
+	}
+
+	private void awaitCompletion(UUID runId) throws Exception {
+		long deadline = System.currentTimeMillis() + 5000L;
+		while (System.currentTimeMillis() < deadline) {
+			SimulationJobSnapshot snapshot = jobService.getSimulationJob(runId);
+			if ("completed".equals(snapshot.status())) {
+				return;
+			}
+			Thread.sleep(25L);
+		}
+		throw new AssertionError("simulation job did not complete");
 	}
 
 	private Map<String, Object> validGraph() {

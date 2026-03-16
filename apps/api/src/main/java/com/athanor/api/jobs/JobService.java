@@ -1,7 +1,6 @@
 package com.athanor.api.jobs;
 
 import com.athanor.api.compiler.CompilerService;
-import com.athanor.api.compiler.WorkerExecutionResult;
 import com.athanor.api.simulation.SimulationService;
 import com.athanor.api.simulation.SimulationBatchExecutor;
 import com.athanor.api.simulation.WorkerExecutionSummaryMapper;
@@ -30,6 +29,7 @@ public class JobService implements DisposableBean {
 	private final WorkerRuntimeDispatcher workerRuntimeDispatcher;
 	private final WorkerExecutionSummaryMapper summaryMapper;
 	private final TelemetryService telemetryService;
+	private final SimulationResultStore simulationResultStore;
 	private final SimulationJobEntityJpaRepository jobRepository;
 	private final ObjectMapper objectMapper;
 	private final ExecutorService executor;
@@ -46,6 +46,7 @@ public class JobService implements DisposableBean {
 		WorkerRuntimeDispatcher workerRuntimeDispatcher,
 		WorkerExecutionSummaryMapper summaryMapper,
 		TelemetryService telemetryService,
+		SimulationResultStore simulationResultStore,
 		SimulationJobEntityJpaRepository jobRepository,
 		ObjectMapper objectMapper,
 		MeterRegistry meterRegistry
@@ -56,6 +57,7 @@ public class JobService implements DisposableBean {
 		this.workerRuntimeDispatcher = workerRuntimeDispatcher;
 		this.summaryMapper = summaryMapper;
 		this.telemetryService = telemetryService;
+		this.simulationResultStore = simulationResultStore;
 		this.jobRepository = jobRepository;
 		this.objectMapper = objectMapper;
 		this.workerCount = Math.max(2, Runtime.getRuntime().availableProcessors() / 2);
@@ -142,7 +144,7 @@ public class JobService implements DisposableBean {
 		save(job);
 	}
 
-	public void completeWorkerJob(UUID runId, WorkerExecutionResult executionResult) {
+	public void completeWorkerJob(UUID runId, WorkerExecutionCompletionPayload completionPayload) {
 		SimulationJob job = job(runId);
 		if (isTerminal(job.status())) {
 			return;
@@ -152,13 +154,48 @@ public class JobService implements DisposableBean {
 			job.versionId(),
 			job.versionNumber(),
 			job.bundleHash(),
-			executionResult,
-			null
+			completionPayload
 		);
-		job.markCompleted(summary);
+		job.markCompleted(summary, completionPayload.resultKey());
 		save(job);
 		recordTelemetry(summary);
 		decrementRunningJobs();
+	}
+
+	public SimulationRunPage getSimulationTracePage(UUID runId, int page, int pageSize) {
+		SimulationJob job = job(runId);
+		int sanitizedPage = Math.max(page, 0);
+		int sanitizedPageSize = Math.max(1, Math.min(pageSize, 50));
+		int offset = sanitizedPage * sanitizedPageSize;
+
+		if (job.summary() == null) {
+			return new SimulationRunPage(sanitizedPage, sanitizedPageSize, 0, java.util.List.of());
+		}
+
+		if (job.resultKey() == null || job.resultKey().isBlank()) {
+			java.util.List<SimulationService.SimulationRun> runs = job.summary().runs();
+			int end = Math.min(runs.size(), offset + sanitizedPageSize);
+			if (offset >= runs.size()) {
+				return new SimulationRunPage(sanitizedPage, sanitizedPageSize, runs.size(), java.util.List.of());
+			}
+			return new SimulationRunPage(
+				sanitizedPage,
+				sanitizedPageSize,
+				runs.size(),
+				runs.subList(offset, end)
+			);
+		}
+
+		try {
+			byte[] payload = simulationResultStore.read(job.resultKey());
+			return summaryMapper.toSimulationRunPage(
+				objectMapper.readValue(payload, com.athanor.api.compiler.WorkerExecutionResult.class),
+				sanitizedPage,
+				sanitizedPageSize
+			);
+		} catch (Exception exception) {
+			throw new IllegalStateException("failed to read simulation trace page", exception);
+		}
 	}
 
 	public void failWorkerJob(UUID runId, String error) {
@@ -217,7 +254,7 @@ public class JobService implements DisposableBean {
 				job.request(),
 				job::recordProgress
 			);
-			job.markCompleted(summary);
+			job.markCompleted(summary, null);
 			save(job);
 			recordTelemetry(summary);
 		} catch (RuntimeException exception) {

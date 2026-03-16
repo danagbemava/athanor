@@ -118,6 +118,13 @@ export type SimulationJobSnapshot = {
   summary?: SimulationSnapshot | null;
 };
 
+export type SimulationRunPage = {
+  page: number;
+  pageSize: number;
+  totalRuns: number;
+  runs: SimulationRun[];
+};
+
 export type ScenarioAnalyticsTraceSample = {
   seed: number;
   outcome: string;
@@ -376,6 +383,18 @@ export function useScenarioStudio() {
   const simulationJob = useState<SimulationJobSnapshot | null>(
     "studio:simulation-job",
     () => null,
+  );
+  const simulationTracePage = useState<SimulationRunPage | null>(
+    "studio:simulation-trace-page",
+    () => null,
+  );
+  const isLoadingSimulationTracePage = useState<boolean>(
+    "studio:is-loading-simulation-trace-page",
+    () => false,
+  );
+  const simulationTracePageError = useState<string>(
+    "studio:simulation-trace-page-error",
+    () => "",
   );
   const analyticsResponse = useState<ScenarioAnalyticsSnapshot | null>(
     "studio:analytics-response",
@@ -1287,6 +1306,8 @@ export function useScenarioStudio() {
     requestError.value = "";
     simulationResponse.value = null;
     simulationJob.value = null;
+    simulationTracePage.value = null;
+    simulationTracePageError.value = "";
     activeSimulationRunId.value = "";
     statusNote.value = "Queueing simulation batch...";
     const normalizedRunCount = Number.isFinite(simulationRunCount.value)
@@ -1379,6 +1400,7 @@ export function useScenarioStudio() {
 
       if (job.status === "completed" && job.summary) {
         simulationResponse.value = job.summary;
+        await fetchSimulationTracePage(runId, 0);
         await fetchScenarioAnalytics(job.summary.scenarioId, { force: true });
         statusNote.value = `Completed ${job.summary.runCount} simulation runs`;
         pushActivity(
@@ -1414,9 +1436,52 @@ export function useScenarioStudio() {
     throw new Error("Simulation polling timed out.");
   }
 
+  async function fetchSimulationTracePage(
+    runId: string,
+    page = 0,
+    pageSize = 8,
+  ) {
+    const normalizedRunId = runId.trim();
+    if (!normalizedRunId) {
+      simulationTracePage.value = null;
+      simulationTracePageError.value = "";
+      return null;
+    }
+
+    isLoadingSimulationTracePage.value = true;
+    simulationTracePageError.value = "";
+
+    try {
+      const response = await fetch(
+        `${apiBaseUrl.value}/runs/${normalizedRunId}/trace-runs?page=${Math.max(page, 0)}&pageSize=${Math.max(1, Math.min(pageSize, 50))}`,
+      );
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(
+          String(payload?.error || "Simulation trace request failed."),
+        );
+      }
+
+      simulationTracePage.value = payload as SimulationRunPage;
+      return simulationTracePage.value;
+    } catch (error) {
+      simulationTracePage.value = null;
+      simulationTracePageError.value =
+        error instanceof Error
+          ? error.message
+          : "Simulation trace request failed.";
+      return null;
+    } finally {
+      isLoadingSimulationTracePage.value = false;
+    }
+  }
+
   function resetSimulationState() {
     simulationResponse.value = null;
     simulationJob.value = null;
+    simulationTracePage.value = null;
+    simulationTracePageError.value = "";
+    isLoadingSimulationTracePage.value = false;
     activeSimulationRunId.value = "";
   }
 
@@ -1736,6 +1801,9 @@ export function useScenarioStudio() {
     validationResponse,
     simulationResponse,
     simulationJob,
+    simulationTracePage,
+    isLoadingSimulationTracePage,
+    simulationTracePageError,
     analyticsResponse,
     optimizationJob,
     isLoadingAnalytics,
@@ -1788,6 +1856,7 @@ export function useScenarioStudio() {
     saveNewVersion,
     validateScenario,
     runSimulation,
+    fetchSimulationTracePage,
     runOptimization,
     applyOptimization,
     fetchScenarioAnalytics,

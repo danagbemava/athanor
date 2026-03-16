@@ -43,6 +43,22 @@ const sortedBestDistribution = computed(() =>
 const tunedNodes = computed(
   () => optimizationJob.value?.bestParameters?.chanceWeights ?? [],
 );
+
+const optimizationAgents = computed(() => {
+  const maxIterations = Math.max(
+    1,
+    optimizationJob.value?.maxIterations ?? optimizationMaxIterations.value ?? 1,
+  );
+  const agentCount = Math.min(5, Math.max(3, Math.ceil(maxIterations / 3)));
+  const progress = Math.max(0, Math.min(100, optimizationProgress.value));
+
+  return Array.from({ length: agentCount }, (_, index) => ({
+    id: `optimization-agent-${index}`,
+    hue: index % 2 === 0 ? "bg-amber-400/90" : "bg-rose-400/90",
+    left: `${Math.max(0, progress - index * 4)}%`,
+    opacity: progress > 0 ? Math.max(0.3, 1 - index * 0.16) : 0.22,
+  }));
+});
 </script>
 
 <template>
@@ -153,6 +169,54 @@ const tunedNodes = computed(
           >
             {{ formatTimestamp(optimizationJob.completedAt) }}
           </p>
+        </div>
+      </div>
+
+      <div
+        v-if="optimizationJob"
+        class="overflow-hidden rounded-xl border border-border/70 bg-muted/20 p-4"
+      >
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <p class="text-xs font-medium uppercase tracking-[0.24em] text-muted-foreground">
+              Optimization Pulse
+            </p>
+            <p class="mt-2 text-sm text-foreground/80">
+              Tracking candidate evaluations across {{ optimizationJob.maxIterations }}
+              iterations.
+            </p>
+          </div>
+          <Badge :variant="simulationStatusTone(optimizationJob.status)">
+            {{ optimizationJob.iterationsCompleted }} / {{ optimizationJob.maxIterations }}
+          </Badge>
+        </div>
+
+        <div class="mt-4 space-y-3">
+          <div class="relative h-4 overflow-hidden rounded-full bg-background/80 ring-1 ring-border/70">
+            <div
+              class="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-amber-400 via-orange-400 to-rose-500 transition-[width] duration-500 ease-out"
+              :style="{ width: `${optimizationProgress}%` }"
+            />
+            <div
+              v-for="agent in optimizationAgents"
+              :key="agent.id"
+              class="absolute top-1/2 size-2.5 -translate-y-1/2 rounded-full shadow-[0_0_0_4px_rgba(251,191,36,0.12)] transition-[left,opacity] duration-500 ease-out"
+              :class="agent.hue"
+              :style="{
+                left: `calc(0.4rem + (100% - 1.35rem) * ${agent.left} / 100)`,
+                opacity: agent.opacity,
+              }"
+            />
+          </div>
+
+          <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span>{{ optimizationProgress }}% complete</span>
+            <span>
+              {{ optimizationJob.iterationsCompleted }} of
+              {{ optimizationJob.maxIterations }} iterations
+            </span>
+            <span>Best score {{ optimizationJob.bestScore.toFixed(3) }}</span>
+          </div>
         </div>
       </div>
 

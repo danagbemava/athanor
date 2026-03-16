@@ -26,9 +26,10 @@ final class SimulationJob {
 	private volatile UUID versionId;
 	private volatile Integer versionNumber;
 	private volatile String bundleHash;
+	private volatile String resultKey;
 
 	SimulationJob(UUID runId, UUID scenarioId, SimulationService.SimulationRequest request) {
-		this(runId, scenarioId, request, Instant.now(), request.runCount(), "pending", 0, 0, false, null, null, null, null, null, null, null);
+		this(runId, scenarioId, request, Instant.now(), request.runCount(), "pending", 0, 0, false, null, null, null, null, null, null, null, null);
 	}
 
 	private SimulationJob(
@@ -47,7 +48,8 @@ final class SimulationJob {
 		SimulationService.SimulationSummary summary,
 		UUID versionId,
 		Integer versionNumber,
-		String bundleHash
+		String bundleHash,
+		String resultKey
 	) {
 		this.runId = runId;
 		this.scenarioId = scenarioId;
@@ -65,6 +67,7 @@ final class SimulationJob {
 		this.versionId = versionId;
 		this.versionNumber = versionNumber;
 		this.bundleHash = bundleHash;
+		this.resultKey = resultKey;
 	}
 
 	static SimulationJob fromEntity(
@@ -93,7 +96,8 @@ final class SimulationJob {
 				),
 			entity.versionId(),
 			entity.versionNumber(),
-			entity.bundleHash()
+			entity.bundleHash(),
+			entity.resultKey()
 		);
 	}
 
@@ -143,8 +147,12 @@ final class SimulationJob {
 		this.bundleHash = compiledBundle.bundleHash();
 	}
 
-	synchronized void markCompleted(SimulationService.SimulationSummary summary) {
+	synchronized void markCompleted(
+		SimulationService.SimulationSummary summary,
+		String resultKey
+	) {
 		this.summary = summary;
+		this.resultKey = resultKey;
 		this.completedRuns = totalRuns;
 		this.status = "completed";
 		this.completedAt = Instant.now();
@@ -203,6 +211,14 @@ final class SimulationJob {
 		return bundleHash;
 	}
 
+	String resultKey() {
+		return resultKey;
+	}
+
+	SimulationService.SimulationSummary summary() {
+		return summary;
+	}
+
 	SimulationJobEntity toEntity(ObjectMapper objectMapper) {
 		return new SimulationJobEntity(
 			runId,
@@ -220,7 +236,8 @@ final class SimulationJob {
 			summary == null ? null : writeJson(objectMapper, summary),
 			versionId,
 			versionNumber,
-			bundleHash
+			bundleHash,
+			resultKey
 		);
 	}
 

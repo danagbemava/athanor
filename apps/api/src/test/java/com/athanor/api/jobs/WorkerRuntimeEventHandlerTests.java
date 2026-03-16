@@ -13,6 +13,7 @@ import com.athanor.api.simulation.WorkerExecutionSummaryMapper;
 import com.athanor.api.telemetry.TelemetryService;
 import com.athanor.api.telemetry.TelemetryServiceTestFactory;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.time.Instant;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -30,11 +31,13 @@ class WorkerRuntimeEventHandlerTests {
 	private JobService jobService;
 	private TelemetryService telemetryService;
 	private WorkerRuntimeEventHandler eventHandler;
+	private ObjectMapper objectMapper;
+	private SimulationResultStoreTestFactory.MutableSimulationResultStore simulationResultStore;
 	private UUID runId;
 
 	@BeforeEach
 	void setUp() throws Exception {
-		ObjectMapper objectMapper = new ObjectMapper();
+		objectMapper = new ObjectMapper();
 		ScenarioService scenarioService = ScenarioServiceTestFactory.create(objectMapper);
 		CompilerService compilerService = new CompilerService(
 			scenarioService,
@@ -44,6 +47,7 @@ class WorkerRuntimeEventHandlerTests {
 		);
 		SimulationService simulationService = new SimulationService(compilerService, objectMapper);
 		telemetryService = TelemetryServiceTestFactory.create(objectMapper);
+		simulationResultStore = SimulationResultStoreTestFactory.create();
 		jobService = new JobService(
 			compilerService,
 			simulationService,
@@ -51,6 +55,7 @@ class WorkerRuntimeEventHandlerTests {
 			new StubWorkerRuntimeDispatcher(),
 			new WorkerExecutionSummaryMapper(objectMapper),
 			telemetryService,
+			simulationResultStore,
 			SimulationJobRepositoryTestFactory.create(),
 			objectMapper,
 			new SimpleMeterRegistry()
@@ -72,6 +77,7 @@ class WorkerRuntimeEventHandlerTests {
 	@Test
 	void handlesProgressAndCompletionEvents() throws Exception {
 		String bundleHash = jobService.getSimulationJob(runId).bundleHash();
+		String resultKey = storeExecutionResult(bundleHash);
 
 		eventHandler.handle(
 			new WorkerRuntimeEventMessage(
@@ -86,7 +92,7 @@ class WorkerRuntimeEventHandlerTests {
 				"1-1",
 				runId,
 				"complete",
-				new ObjectMapper().writeValueAsString(executionResult(bundleHash))
+				objectMapper.writeValueAsString(completionPayload(bundleHash, resultKey))
 			)
 		);
 
@@ -100,11 +106,12 @@ class WorkerRuntimeEventHandlerTests {
 	@Test
 	void ignoresDuplicateCompletionEvents() throws Exception {
 		String bundleHash = jobService.getSimulationJob(runId).bundleHash();
+		String resultKey = storeExecutionResult(bundleHash);
 		WorkerRuntimeEventMessage completion = new WorkerRuntimeEventMessage(
 			"1-1",
 			runId,
 			"complete",
-			new ObjectMapper().writeValueAsString(executionResult(bundleHash))
+			objectMapper.writeValueAsString(completionPayload(bundleHash, resultKey))
 		);
 
 		eventHandler.handle(completion);
@@ -154,6 +161,31 @@ class WorkerRuntimeEventHandlerTests {
 					List.of()
 				)
 			)
+		);
+	}
+
+	private String storeExecutionResult(String bundleHash) {
+		String resultKey = "simulation-results/" + runId + ".json";
+		simulationResultStore.putJson(resultKey, executionResult(bundleHash), objectMapper);
+		return resultKey;
+	}
+
+	private WorkerExecutionCompletionPayload completionPayload(
+		String bundleHash,
+		String resultKey
+	) {
+		return new WorkerExecutionCompletionPayload(
+			bundleHash,
+			"random-v1",
+			"random-v1",
+			"analytics",
+			9L,
+			2,
+			50,
+			1.0d,
+			Map.of("approved", 1, "declined", 1),
+			resultKey,
+			Instant.now()
 		);
 	}
 
