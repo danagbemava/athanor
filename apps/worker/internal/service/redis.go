@@ -38,6 +38,36 @@ type ObjectStoreConfig struct {
 }
 
 const runStatusKeyPrefix = "athanor.worker.run.status:"
+const runClaimKeyPrefix = "athanor.worker.run.claim:"
+const runStatusTTL = 24 * time.Hour
+const runClaimTTL = 30 * time.Minute
+
+type runStateStore interface {
+	Get(ctx context.Context, key string) (string, error)
+	SetNX(ctx context.Context, key string, value string, expiration time.Duration) (bool, error)
+	Del(ctx context.Context, keys ...string) error
+}
+
+type redisRunStateStore struct {
+	client *redis.Client
+}
+
+func (store redisRunStateStore) Get(ctx context.Context, key string) (string, error) {
+	return store.client.Get(ctx, key).Result()
+}
+
+func (store redisRunStateStore) SetNX(
+	ctx context.Context,
+	key string,
+	value string,
+	expiration time.Duration,
+) (bool, error) {
+	return store.client.SetNX(ctx, key, value, expiration).Result()
+}
+
+func (store redisRunStateStore) Del(ctx context.Context, keys ...string) error {
+	return store.client.Del(ctx, keys...).Err()
+}
 
 func Serve(config RedisConfig) error {
 	if config.Address == "" {
@@ -68,6 +98,7 @@ func Serve(config RedisConfig) error {
 		resultStore: resultStore,
 	}
 	context := context.Background()
+	stateStore := redisRunStateStore{client: publisherClient}
 
 	if err := consumerClient.XGroupCreateMkStream(
 		context,
@@ -104,14 +135,25 @@ func Serve(config RedisConfig) error {
 					_ = consumerClient.XAck(context, config.DispatchStream, config.DispatchConsumerGrp, message.ID).Err()
 					continue
 				}
-				if completed, err := hasTerminalRunState(context, publisherClient, dispatchRequest.RunID); err != nil {
-					return fmt.Errorf("failed to check run status: %w", err)
-				} else if completed {
+				// Redis delivers dispatch messages at least once. Claim the run first,
+				// then check for a completed marker so redeliveries are skipped safely.
+				claimed, err := claimRunExecution(
+					context,
+					stateStore,
+					dispatchRequest.RunID,
+					config.DispatchConsumer,
+				)
+				if err != nil {
+					return fmt.Errorf("failed to claim run execution: %w", err)
+				}
+				if !claimed {
 					_ = consumerClient.XAck(context, config.DispatchStream, config.DispatchConsumerGrp, message.ID).Err()
 					continue
 				}
 				if err := runtime.ProcessDispatch(dispatchRequest, publisher); err == nil {
 					_ = consumerClient.XAck(context, config.DispatchStream, config.DispatchConsumerGrp, message.ID).Err()
+				} else {
+					_ = releaseRunExecutionClaim(context, stateStore, dispatchRequest.RunID)
 				}
 			}
 		}
@@ -146,10 +188,10 @@ func dispatchRequestFromMessage(message redis.XMessage) (DispatchRequest, error)
 
 func hasTerminalRunState(
 	ctx context.Context,
-	client *redis.Client,
+	store runStateStore,
 	runID string,
 ) (bool, error) {
-	status, err := client.Get(ctx, runStatusKey(runID)).Result()
+	status, err := store.Get(ctx, runStatusKey(runID))
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			return false, nil
@@ -160,11 +202,51 @@ func hasTerminalRunState(
 }
 
 func isTerminalRunStatus(status string) bool {
-	return status == "completed" || status == "failed"
+	return status == "completed"
 }
 
 func runStatusKey(runID string) string {
 	return runStatusKeyPrefix + runID
+}
+
+func runClaimKey(runID string) string {
+	return runClaimKeyPrefix + runID
+}
+
+func claimRunExecution(
+	ctx context.Context,
+	store runStateStore,
+	runID string,
+	consumer string,
+) (bool, error) {
+	claimed, err := store.SetNX(ctx, runClaimKey(runID), consumer, runClaimTTL)
+	if err != nil {
+		return false, err
+	}
+	if !claimed {
+		return false, nil
+	}
+
+	completed, err := hasTerminalRunState(ctx, store, runID)
+	if err != nil {
+		_ = store.Del(ctx, runClaimKey(runID))
+		return false, err
+	}
+	if completed {
+		if err := store.Del(ctx, runClaimKey(runID)); err != nil {
+			return false, err
+		}
+		return false, nil
+	}
+	return true, nil
+}
+
+func releaseRunExecutionClaim(
+	ctx context.Context,
+	store runStateStore,
+	runID string,
+) error {
+	return store.Del(ctx, runClaimKey(runID))
 }
 
 type redisEventPublisher struct {
@@ -204,7 +286,7 @@ func (publisher redisEventPublisher) PublishFailure(runID string, message string
 	if err != nil {
 		return err
 	}
-	return publisher.publish(runID, "failed", payload, "failed")
+	return publisher.publish(runID, "failed", payload)
 }
 
 func (publisher redisEventPublisher) publish(runID string, eventType string, payload []byte, terminalStatus ...string) error {
@@ -225,8 +307,11 @@ func (publisher redisEventPublisher) publish(runID string, eventType string, pay
 			context.Background(),
 			runStatusKey(runID),
 			terminalStatus[0],
-			24*time.Hour,
+			runStatusTTL,
 		)
+	}
+	if eventType == "complete" || eventType == "failed" {
+		pipe.Del(context.Background(), runClaimKey(runID))
 	}
 	_, err := pipe.Exec(context.Background())
 	return err
