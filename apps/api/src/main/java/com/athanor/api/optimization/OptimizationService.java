@@ -107,19 +107,26 @@ public class OptimizationService implements DisposableBean {
 		if (!Objects.equals(job.status(), "completed")) {
 			throw new IllegalArgumentException("optimization job has not completed");
 		}
+		OptimizationJobSnapshot snapshot = job.snapshot();
+		if (snapshot.appliedVersionId() != null) {
+			return scenarioService.snapshotForVersion(
+				job.scenarioId(),
+				snapshot.appliedVersionId()
+			);
+		}
 
 		Map<String, Object> graph = job.bestGraph();
 		if (graph == null) {
 			throw new IllegalArgumentException("optimization job has no best parameters");
 		}
 
-		ScenarioService.ScenarioSnapshot snapshot = scenarioService.createVersion(
+		ScenarioService.ScenarioSnapshot appliedSnapshot = scenarioService.createVersion(
 			job.scenarioId(),
 			new ScenarioService.CreateVersionCommand(null, null, graph)
 		);
-		job.markApplied(snapshot.version().id(), snapshot.version().number());
+		job.markApplied(appliedSnapshot.version().id(), appliedSnapshot.version().number());
 		save(job);
-		return snapshot;
+		return appliedSnapshot;
 	}
 
 	@Override

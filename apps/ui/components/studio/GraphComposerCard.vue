@@ -1007,10 +1007,19 @@ onBeforeUnmount(() => {
 @import "@vue-flow/minimap/dist/style.css";
 
 .scenario-flow {
+    --vf-node-bg: rgba(255, 255, 255, 0.92);
+    --vf-node-text: rgb(15 23 42);
+    --vf-node-color: rgb(51 65 85 / 0.78);
+    --vf-connection-path: rgb(14 165 233);
+    background:
+        radial-gradient(circle at top, rgba(56, 189, 248, 0.18), transparent 38%),
+        linear-gradient(180deg, rgba(248, 250, 252, 0.95), rgba(226, 232, 240, 0.92));
+}
+
+.dark .scenario-flow {
     --vf-node-bg: rgba(12, 18, 28, 0.94);
     --vf-node-text: rgb(244 244 245);
     --vf-node-color: rgb(148 163 184 / 0.7);
-    --vf-connection-path: rgb(14 165 233);
     background:
         radial-gradient(circle at top, rgba(14, 165, 233, 0.08), transparent 35%),
         linear-gradient(180deg, rgba(15, 23, 42, 0.04), transparent);
@@ -1018,17 +1027,34 @@ onBeforeUnmount(() => {
 
 .scenario-flow .vue-flow__controls {
     box-shadow: none;
+    border: 1px solid rgb(148 163 184 / 0.45);
+    background: rgb(255 255 255 / 0.9);
+    backdrop-filter: blur(14px);
+}
+
+.dark .scenario-flow .vue-flow__controls {
     border: 1px solid rgb(63 63 70 / 0.7);
     background: rgb(10 10 10 / 0.92);
 }
 
 .scenario-flow .vue-flow__controls-button {
-    border-bottom-color: rgb(63 63 70 / 0.7);
-    color: rgb(228 228 231);
+    border-bottom-color: rgb(148 163 184 / 0.45);
+    color: rgb(30 41 59);
     background: transparent;
 }
 
+.dark .scenario-flow .vue-flow__controls-button {
+    border-bottom-color: rgb(63 63 70 / 0.7);
+    color: rgb(228 228 231);
+}
+
 .scenario-flow .vue-flow__minimap {
+    background: rgb(255 255 255 / 0.9);
+    border: 1px solid rgb(148 163 184 / 0.45);
+    backdrop-filter: blur(14px);
+}
+
+.dark .scenario-flow .vue-flow__minimap {
     background: rgb(10 10 10 / 0.92);
     border: 1px solid rgb(63 63 70 / 0.7);
 }
@@ -1044,11 +1070,18 @@ onBeforeUnmount(() => {
 
 .scenario-flow .vue-flow__pane {
     cursor: crosshair;
+    background-color: rgb(239 246 255 / 0.95);
+    background-image:
+        radial-gradient(circle at center, rgba(56, 189, 248, 0.28) 0 1px, transparent 1.6px),
+        radial-gradient(circle at top, rgba(14, 165, 233, 0.1), transparent 40%);
+    background-position: 0 0, center;
+    background-size: 24px 24px, 100% 100%;
+}
+
+.dark .scenario-flow .vue-flow__pane {
     background-color: rgb(9 14 24 / 0.95);
     background-image:
         radial-gradient(circle at center, rgba(56, 189, 248, 0.18) 0 1px, transparent 1.5px),
         radial-gradient(circle at top, rgba(14, 165, 233, 0.06), transparent 38%);
-    background-position: 0 0, center;
-    background-size: 24px 24px, 100% 100%;
 }
 </style>

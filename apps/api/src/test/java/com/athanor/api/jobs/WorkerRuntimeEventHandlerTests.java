@@ -123,6 +123,33 @@ class WorkerRuntimeEventHandlerTests {
 		assertEquals(1, telemetryService.scenarioAnalytics(snapshot.scenarioId()).batchCount());
 	}
 
+	@Test
+	void ignoresFailureEventsAfterCompletion() throws Exception {
+		String bundleHash = jobService.getSimulationJob(runId).bundleHash();
+		String resultKey = storeExecutionResult(bundleHash);
+
+		eventHandler.handle(
+			new WorkerRuntimeEventMessage(
+				"1-1",
+				runId,
+				"complete",
+				objectMapper.writeValueAsString(completionPayload(bundleHash, resultKey))
+			)
+		);
+		eventHandler.handle(
+			new WorkerRuntimeEventMessage(
+				"1-2",
+				runId,
+				"failed",
+				"{\"error\":\"duplicate transport failure\"}"
+			)
+		);
+
+		SimulationJobSnapshot snapshot = jobService.getSimulationJob(runId);
+		assertEquals("completed", snapshot.status());
+		assertEquals(1, telemetryService.scenarioAnalytics(snapshot.scenarioId()).batchCount());
+	}
+
 	private void awaitBundleAttachment(UUID runId) throws InterruptedException {
 		for (int index = 0; index < 100; index += 1) {
 			if (jobService.getSimulationJob(runId).bundleHash() != null) {

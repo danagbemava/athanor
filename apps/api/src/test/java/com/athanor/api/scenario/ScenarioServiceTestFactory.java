@@ -76,6 +76,14 @@ public final class ScenarioServiceTestFactory {
 				.stream()
 				.max(Comparator.comparingInt(ScenarioVersionEntity::versionNumber))
 		);
+		when(versionRepository.findById(any(UUID.class))).thenAnswer(invocation ->
+			versionsByScenario
+				.values()
+				.stream()
+				.flatMap(List::stream)
+				.filter(version -> version.id().equals(invocation.getArgument(0)))
+				.findFirst()
+		);
 
 		return new ScenarioService(
 			scenarioRepository,

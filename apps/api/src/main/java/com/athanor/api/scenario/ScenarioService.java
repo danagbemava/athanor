@@ -134,6 +134,16 @@ public class ScenarioService {
         );
     }
 
+    public ScenarioSnapshot snapshotForVersion(UUID scenarioId, UUID versionId) {
+        ScenarioEntity aggregate = findScenario(scenarioId);
+        ScenarioVersionEntity version = versionRepository
+            .findById(versionId)
+            .filter(candidate -> candidate.scenarioId().equals(scenarioId))
+            .orElseThrow(() -> new ScenarioNotFoundException(scenarioId));
+        int versionCount = versionRepository.findByScenarioIdOrderByVersionNumberAsc(scenarioId).size();
+        return toSnapshot(aggregate, version, versionCount);
+    }
+
     private ScenarioEntity findScenario(UUID id) {
         return scenarioRepository.findById(id).orElseThrow(() -> new ScenarioNotFoundException(id));
     }

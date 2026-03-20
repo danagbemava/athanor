@@ -116,6 +116,12 @@ class OptimizationControllerTests {
 			.andExpect(status().isCreated())
 			.andExpect(jsonPath("$.scenarioId").value(scenarioId.toString()))
 			.andExpect(jsonPath("$.version.number").value(2));
+
+		mockMvc
+			.perform(post("/optimize/{jobId}/apply", jobId))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.scenarioId").value(scenarioId.toString()))
+			.andExpect(jsonPath("$.version.number").value(2));
 	}
 
 	@Test

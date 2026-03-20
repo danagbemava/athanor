@@ -16,15 +16,15 @@ const props = defineProps<NodeProps<ScenarioNodeData>>();
 
 const nodeClasses = computed(() => {
     const base =
-        "w-56 rounded-2xl border px-4 py-3 shadow-lg transition-all select-none backdrop-blur";
+        "w-56 rounded-2xl border px-4 py-3 text-slate-950 shadow-lg transition-all select-none backdrop-blur dark:text-slate-50";
 
     if (props.type === "decision") {
-        return `${base} border-sky-500/60 bg-sky-500/10`;
+        return `${base} border-sky-500/45 bg-white/92 shadow-sky-200/60 dark:border-sky-500/60 dark:bg-sky-500/10 dark:shadow-sky-950/30`;
     }
     if (props.type === "chance") {
-        return `${base} border-amber-500/60 bg-amber-500/10`;
+        return `${base} border-amber-500/45 bg-white/92 shadow-amber-200/60 dark:border-amber-500/60 dark:bg-amber-500/10 dark:shadow-amber-950/30`;
     }
-    return `${base} border-emerald-500/60 bg-emerald-500/10`;
+    return `${base} border-emerald-500/45 bg-white/92 shadow-emerald-200/60 dark:border-emerald-500/60 dark:bg-emerald-500/10 dark:shadow-emerald-950/30`;
 });
 </script>
 
@@ -40,7 +40,7 @@ const nodeClasses = computed(() => {
         <Handle
             type="target"
             :position="Position.Left"
-            class="!size-4 !border-2 !border-background !bg-muted"
+            class="!size-4 !border-2 !border-white !bg-slate-200 dark:!border-slate-950 dark:!bg-slate-600"
             :connectable="props.connectable"
         />
 
@@ -48,7 +48,7 @@ const nodeClasses = computed(() => {
             v-if="props.type !== 'terminal'"
             type="source"
             :position="Position.Right"
-            class="!size-4 !border-2 !border-background !bg-sky-500"
+            class="!size-4 !border-2 !border-white !bg-sky-500 dark:!border-slate-950"
             :connectable="props.data.connectable"
         />
 
@@ -57,14 +57,17 @@ const nodeClasses = computed(() => {
                 <p class="text-sm font-semibold">
                     {{ props.data.title }}
                 </p>
-                <p class="text-xs text-muted-foreground">
+                <p class="text-xs text-slate-500 dark:text-slate-400">
                     {{ props.id }}
                 </p>
             </div>
-            <Grip class="mt-0.5 size-4 text-muted-foreground" />
+            <Grip class="mt-0.5 size-4 text-slate-400 dark:text-slate-500" />
         </div>
 
-        <Badge variant="outline">
+        <Badge
+            variant="outline"
+            class="border-slate-300/80 bg-slate-50/90 text-slate-700 dark:border-slate-700 dark:bg-slate-950/40 dark:text-slate-200"
+        >
             {{
                 props.type === "decision"
                     ? "DecisionNode"
@@ -74,14 +77,14 @@ const nodeClasses = computed(() => {
             }}
         </Badge>
 
-        <div class="mt-3 space-y-2 text-xs text-muted-foreground">
+        <div class="mt-3 space-y-2 text-xs text-slate-600 dark:text-slate-300">
             <p>{{ props.data.detail }}</p>
             <p>
                 {{ props.data.description || "Click to edit inspector details." }}
             </p>
             <p
                 v-if="props.data.connectable && props.type !== 'terminal'"
-                class="inline-flex items-center gap-1 text-sky-300"
+                class="inline-flex items-center gap-1 text-sky-600 dark:text-sky-300"
             >
                 <Target class="size-3" />
                 Drag from the right handle to connect
