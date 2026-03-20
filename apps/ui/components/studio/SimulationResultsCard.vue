@@ -10,9 +10,26 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
+import { useSimulation } from "@/composables/scenario-studio/useSimulation";
+import {
+    formatPayload,
+    formatTimestamp,
+    simulationStatusTone,
+} from "@/composables/scenario-studio/utils";
+import { useScenarioStudioState } from "@/composables/scenario-studio/shared-state";
+import { useValidation } from "@/composables/scenario-studio/useValidation";
+import { useActivityFeed } from "@/composables/scenario-studio/useActivityFeed";
+import { useAnalytics } from "@/composables/scenario-studio/useAnalytics";
+import { useScenarioGraph } from "@/composables/scenario-studio/useScenarioGraph";
 
+const state = useScenarioStudioState();
+const graph = useScenarioGraph(state);
+const activity = useActivityFeed(state);
+const validation = useValidation(state, graph, {
+    pushActivity: activity.pushActivity,
+});
+const analytics = useAnalytics(state);
 const {
-    isSimulating,
     simulationJob,
     simulationProgress,
     simulationResponse,
@@ -21,10 +38,12 @@ const {
     simulationTracePageError,
     simulationRunCount,
     fetchSimulationTracePage,
-    formatTimestamp,
-    formatPayload,
-    simulationStatusTone,
-} = useScenarioStudio();
+} = useSimulation(state, {
+    pushActivity: activity.pushActivity,
+    graphValidationIssues: validation.graphValidationIssues,
+    fetchScenarioAnalytics: analytics.fetchScenarioAnalytics,
+});
+const { isSimulating } = state;
 
 const sortedOutcomes = computed(() => {
     const counts = simulationResponse.value?.outcomeCounts ?? {};

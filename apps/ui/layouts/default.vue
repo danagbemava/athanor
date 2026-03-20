@@ -10,9 +10,15 @@ import {
 } from "lucide-vue-next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useScenarioStudioState } from "@/composables/scenario-studio/shared-state";
+import { useValidation } from "@/composables/scenario-studio/useValidation";
+import { useScenarioGraph } from "@/composables/scenario-studio/useScenarioGraph";
 
 const route = useRoute();
-const { statusNote, openIssues } = useScenarioStudio();
+const state = useScenarioStudioState();
+const graph = useScenarioGraph(state);
+const { openIssues } = useValidation(state, graph);
+const { statusNote } = state;
 const { themeMode, resolvedTheme, setThemeMode } = useThemeMode();
 
 const themeOptions = [

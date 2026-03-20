@@ -12,9 +12,37 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useScenarioStudioState } from "@/composables/scenario-studio/shared-state";
+import { useScenarioGraph } from "@/composables/scenario-studio/useScenarioGraph";
+import { useActivityFeed } from "@/composables/scenario-studio/useActivityFeed";
+import { useValidation } from "@/composables/scenario-studio/useValidation";
+import { useScenarios } from "@/composables/scenario-studio/useScenarios";
+import { useSimulation } from "@/composables/scenario-studio/useSimulation";
+import { useAnalytics } from "@/composables/scenario-studio/useAnalytics";
+import { useOptimization } from "@/composables/scenario-studio/useOptimization";
+import {
+  formatTimestamp,
+  simulationStatusTone,
+} from "@/composables/scenario-studio/utils";
 
+const state = useScenarioStudioState();
+const graph = useScenarioGraph(state);
+const activity = useActivityFeed(state);
+const validation = useValidation(state, graph, {
+  pushActivity: activity.pushActivity,
+});
+const scenarios = useScenarios(state, graph, {
+  pushActivity: activity.pushActivity,
+  graphValidationIssues: validation.graphValidationIssues,
+  validationStatsByScenario: validation.validationStatsByScenario,
+});
+const analytics = useAnalytics(state);
+const simulation = useSimulation(state, {
+  pushActivity: activity.pushActivity,
+  graphValidationIssues: validation.graphValidationIssues,
+  fetchScenarioAnalytics: analytics.fetchScenarioAnalytics,
+});
 const {
-  isOptimizing,
   optimizationTargetJson,
   optimizationMaxIterations,
   optimizationRunsPerIteration,
@@ -24,9 +52,14 @@ const {
   canApplyOptimization,
   runOptimization,
   applyOptimization,
-  simulationStatusTone,
-  formatTimestamp,
-} = useScenarioStudio();
+} = useOptimization(state, {
+  pushActivity: activity.pushActivity,
+  graphValidationIssues: validation.graphValidationIssues,
+  upsertScenarioHistory: scenarios.upsertScenarioHistory,
+  resetSimulationState: simulation.resetSimulationState,
+  fetchScenarioAnalytics: analytics.fetchScenarioAnalytics,
+});
+const { isOptimizing } = state;
 
 const sortedTargetDistribution = computed(() =>
   Object.entries(optimizationJob.value?.targetDistribution ?? {}).sort(

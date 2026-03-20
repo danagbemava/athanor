@@ -18,23 +18,43 @@ import {
 } from "@/components/ui/card";
 import MetricCard from "@/components/studio/MetricCard.vue";
 import QuickActionsCard from "@/components/studio/QuickActionsCard.vue";
+import { useScenarioStudioState } from "@/composables/scenario-studio/shared-state";
+import { useScenarioGraph } from "@/composables/scenario-studio/useScenarioGraph";
+import { useValidation } from "@/composables/scenario-studio/useValidation";
+import { useScenarios } from "@/composables/scenario-studio/useScenarios";
+import { useActivityFeed } from "@/composables/scenario-studio/useActivityFeed";
+import {
+    formatTimestamp,
+    riskBadgeVariant,
+    statusBadgeVariant,
+} from "@/composables/scenario-studio/utils";
 
+const state = useScenarioStudioState();
+const graph = useScenarioGraph(state);
+const activity = useActivityFeed(state);
+const validation = useValidation(state, graph, {
+    pushActivity: activity.pushActivity,
+});
+const scenarios = useScenarios(state, graph, {
+    pushActivity: activity.pushActivity,
+    graphValidationIssues: validation.graphValidationIssues,
+    validationStatsByScenario: validation.validationStatsByScenario,
+});
 const {
     totalScenarios,
     activeDrafts,
     avgVersions,
+    filteredPortfolioRows,
+    selectScenario,
+} = scenarios;
+const {
     overallPassRate,
     openIssues,
     validationRunCount,
     validationTrend,
-    feedItems,
-    requestError,
-    filteredPortfolioRows,
-    formatTimestamp,
-    statusBadgeVariant,
-    riskBadgeVariant,
-    selectScenario,
-} = useScenarioStudio();
+} = validation;
+const { feedItems } = activity;
+const { requestError } = state;
 </script>
 
 <template>

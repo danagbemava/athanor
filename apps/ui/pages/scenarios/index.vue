@@ -12,17 +12,37 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import QuickActionsCard from "@/components/studio/QuickActionsCard.vue";
+import { useScenarioStudioState } from "@/composables/scenario-studio/shared-state";
+import { useScenarioGraph } from "@/composables/scenario-studio/useScenarioGraph";
+import { useValidation } from "@/composables/scenario-studio/useValidation";
+import { useScenarios } from "@/composables/scenario-studio/useScenarios";
+import {
+    formatTimestamp,
+    riskBadgeVariant,
+    statusBadgeVariant,
+} from "@/composables/scenario-studio/utils";
+import { useActivityFeed } from "@/composables/scenario-studio/useActivityFeed";
 
 const router = useRouter();
+const state = useScenarioStudioState();
+const graph = useScenarioGraph(state);
+const activity = useActivityFeed(state);
+const validation = useValidation(state, graph, {
+    pushActivity: activity.pushActivity,
+});
 const {
     portfolioQuery,
     filteredPortfolioRows,
-    statusBadgeVariant,
-    riskBadgeVariant,
-    formatTimestamp,
     requestError,
     selectScenario,
-} = useScenarioStudio();
+} = {
+    ...useScenarios(state, graph, {
+        pushActivity: activity.pushActivity,
+        graphValidationIssues: validation.graphValidationIssues,
+        validationStatsByScenario: validation.validationStatsByScenario,
+    }),
+    requestError: state.requestError,
+};
 
 function openScenario(scenarioId: string) {
     router.push(`/scenarios/${scenarioId}`);

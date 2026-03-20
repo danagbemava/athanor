@@ -5,8 +5,10 @@ import GraphComposerCard from "@/components/studio/GraphComposerCard.vue";
 import OptimizationResultsCard from "@/components/studio/OptimizationResultsCard.vue";
 import QuickActionsCard from "@/components/studio/QuickActionsCard.vue";
 import SimulationResultsCard from "@/components/studio/SimulationResultsCard.vue";
+import { useScenarioStudioState } from "@/composables/scenario-studio/shared-state";
 
-const { optimizationJob, requestError, simulationResponse, simulationJob } = useScenarioStudio();
+const { optimizationJob, requestError, simulationResponse, simulationJob } =
+    useScenarioStudioState();
 
 const activeDetailPanel = ref<"simulation" | "optimization">("simulation");
 

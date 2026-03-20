@@ -7,13 +7,16 @@
     "dev": "nuxt dev",
     "build": "nuxt build",
     "test": "node --test test/smoke.test.mjs",
+    "test:unit": "vitest run",
     "lint": "nuxi typecheck"
   },
   "devDependencies": {
     "@nuxtjs/tailwindcss": "^6.14.0",
+    "@types/node": "^24.5.2",
     "nuxt": "^3.17.0",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.9.3",
+    "vitest": "^3.2.4",
     "vue-tsc": "^2.1.6"
   },
   "dependencies": {
