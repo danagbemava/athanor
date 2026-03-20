@@ -13,22 +13,37 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 import QuickActionsCard from "@/components/studio/QuickActionsCard.vue";
+import { useScenarioStudioState } from "@/composables/scenario-studio/shared-state";
+import { useScenarioGraph } from "@/composables/scenario-studio/useScenarioGraph";
+import { useValidation } from "@/composables/scenario-studio/useValidation";
+import { useScenarios } from "@/composables/scenario-studio/useScenarios";
+import { useActivityFeed } from "@/composables/scenario-studio/useActivityFeed";
+import {
+    formatPayload,
+    formatTimestamp,
+    riskBadgeVariant,
+    statusBadgeVariant,
+} from "@/composables/scenario-studio/utils";
 
 const route = useRoute();
 const router = useRouter();
+const state = useScenarioStudioState();
+const graph = useScenarioGraph(state);
+const activity = useActivityFeed(state);
+const validation = useValidation(state, graph, {
+    pushActivity: activity.pushActivity,
+});
+const scenarios = useScenarios(state, graph, {
+    pushActivity: activity.pushActivity,
+    graphValidationIssues: validation.graphValidationIssues,
+    validationStatsByScenario: validation.validationStatsByScenario,
+});
 
 const {
-    portfolioRows,
     validationHistory,
-    formatTimestamp,
-    statusBadgeVariant,
-    riskBadgeVariant,
-    selectScenario,
-    requestError,
-    scenarioResponse,
-    validationResponse,
-    formatPayload,
-} = useScenarioStudio();
+} = validation;
+const { portfolioRows, selectScenario } = scenarios;
+const { requestError, scenarioResponse, validationResponse } = state;
 
 const scenarioIdParam = computed(() => String(route.params.id || ""));
 const scenarioRow = computed(() =>

@@ -37,10 +37,19 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 import ScenarioFlowNode from "@/components/studio/ScenarioFlowNode.vue";
-import type { DraftNode, NodeType } from "@/composables/useScenarioStudio";
+import type { DraftNode, NodeType } from "@/composables/scenario-studio/types";
+import {
+    formatPayload,
+    formatTimestamp,
+    nativeControlClass,
+} from "@/composables/scenario-studio/utils";
+import { useScenarioGraph } from "@/composables/scenario-studio/useScenarioGraph";
+import { useValidation } from "@/composables/scenario-studio/useValidation";
 
 const flowId = "scenario-studio-flow";
 const canvas = useScenarioCanvas();
+const graph = useScenarioGraph();
+const validation = useValidation();
 const {
     studio,
     nodeMeta,
@@ -105,9 +114,9 @@ const quickAddMenu = ref<{
     graphY: number;
 } | null>(null);
 
-const nodeReferences = computed(() => studio.nodeReferences.value);
-const graphNodes = computed(() => studio.nodes.value);
-const graphValidationIssues = computed(() => studio.graphValidationIssues.value);
+const nodeReferences = computed(() => graph.nodeReferences.value);
+const graphNodes = computed(() => graph.nodes.value);
+const graphValidationIssues = computed(() => validation.graphValidationIssues.value);
 const zoomPercent = computed(() => `${Math.round(viewport.value.zoom * 100)}%`);
 const shellClass = computed(() =>
     isFullscreen.value
@@ -222,10 +231,10 @@ watch(isFullscreen, async (fullscreen) => {
     document.body.style.overflow = previousBodyOverflow.value;
 });
 
-const rawPayload = computed(() => studio.formatPayload(studio.graphPayload.value));
+const rawPayload = computed(() => formatPayload(graph.graphPayload.value));
 
 function setEntryNode(nodeId: string) {
-    studio.entryNodeId.value = nodeId;
+    graph.entryNodeId.value = nodeId;
     markStudioMutation();
 }
 
@@ -451,7 +460,7 @@ function addNodeFromQuickMenu(type: NodeType) {
     quickAddMenu.value = null;
 }
 
-let autosaveTimer: ReturnType<typeof setInterval> | null = null;
+let autosaveTimer: number | null = null;
 
 onMounted(() => {
     window.addEventListener("keydown", handleKeyboardShortcut);
@@ -517,7 +526,7 @@ onBeforeUnmount(() => {
                         <Badge variant="outline">
                             {{
                                 autosaveState === "saved" && lastAutosavedAt
-                                    ? `Auto-saved ${studio.formatTimestamp(lastAutosavedAt)}`
+                                    ? `Auto-saved ${formatTimestamp(lastAutosavedAt)}`
                                     : autosaveState === "saving"
                                       ? "Saving draft..."
                                       : autosaveState === "error"
@@ -725,9 +734,9 @@ onBeforeUnmount(() => {
                                             </p>
                                             <select
                                                 v-model="selectedNode.type"
-                                                :class="studio.nativeControlClass"
+                                                :class="nativeControlClass"
                                                 @change="
-                                                    studio.normalizeNodeForType(selectedNode);
+                                                    graph.normalizeNodeForType(selectedNode);
                                                     syncEdgesFromNodeOptions();
                                                     markStudioMutation();
                                                 "
@@ -776,7 +785,7 @@ onBeforeUnmount(() => {
 
                                         <label class="flex items-center gap-2 text-sm">
                                             <input
-                                                :checked="studio.entryNodeId.value === selectedNode.id"
+                                                :checked="graph.entryNodeId.value === selectedNode.id"
                                                 type="checkbox"
                                                 @change="setEntryNode(selectedNode.id)"
                                             />
@@ -793,7 +802,7 @@ onBeforeUnmount(() => {
                                                     size="sm"
                                                     variant="outline"
                                                     @click="
-                                                        studio.addDecisionOption(selectedNode);
+                                                        graph.addDecisionOption(selectedNode);
                                                         markStudioMutation();
                                                     "
                                                 >
@@ -813,7 +822,7 @@ onBeforeUnmount(() => {
                                                         size="icon"
                                                         variant="ghost"
                                                         @click="
-                                                            studio.removeDecisionOption(selectedNode, optionIndex);
+                                                            graph.removeDecisionOption(selectedNode, optionIndex);
                                                             syncEdgesFromNodeOptions();
                                                             markStudioMutation();
                                                         "
@@ -823,7 +832,7 @@ onBeforeUnmount(() => {
                                                 </div>
                                                 <select
                                                     v-model="option.to"
-                                                    :class="studio.nativeControlClass"
+                                                    :class="nativeControlClass"
                                                     @change="
                                                         syncEdgesFromNodeOptions();
                                                         markStudioMutation();
@@ -861,7 +870,7 @@ onBeforeUnmount(() => {
                                                     size="sm"
                                                     variant="outline"
                                                     @click="
-                                                        studio.addChanceOption(selectedNode);
+                                                        graph.addChanceOption(selectedNode);
                                                         syncEdgesFromNodeOptions();
                                                         markStudioMutation();
                                                     "
@@ -882,7 +891,7 @@ onBeforeUnmount(() => {
                                                         size="icon"
                                                         variant="ghost"
                                                         @click="
-                                                            studio.removeChanceOption(selectedNode, optionIndex);
+                                                            graph.removeChanceOption(selectedNode, optionIndex);
                                                             syncEdgesFromNodeOptions();
                                                             markStudioMutation();
                                                         "
@@ -892,7 +901,7 @@ onBeforeUnmount(() => {
                                                 </div>
                                                 <select
                                                     v-model="option.to"
-                                                    :class="studio.nativeControlClass"
+                                                    :class="nativeControlClass"
                                                     @change="
                                                         syncEdgesFromNodeOptions();
                                                         markStudioMutation();

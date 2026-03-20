@@ -14,15 +14,18 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import MetricCard from "@/components/studio/MetricCard.vue";
+import { useScenarioStudioState } from "@/composables/scenario-studio/shared-state";
+import { useAnalytics } from "@/composables/scenario-studio/useAnalytics";
+import { formatTimestamp } from "@/composables/scenario-studio/utils";
 
+const state = useScenarioStudioState();
 const {
   scenarioId,
   scenarioName,
-  analyticsResponse,
-  isLoadingAnalytics,
-  analyticsError,
-  formatTimestamp,
-} = useScenarioStudio();
+} = state;
+const { analyticsResponse, isLoadingAnalytics, analyticsError } = useAnalytics(
+  state,
+);
 
 const outcomeEntries = computed(() =>
   Object.entries(analyticsResponse.value?.outcomeCounts ?? {}),

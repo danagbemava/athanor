@@ -10,6 +10,14 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useScenarioStudioState } from "@/composables/scenario-studio/shared-state";
+import { useScenarios } from "@/composables/scenario-studio/useScenarios";
+import { useSimulation } from "@/composables/scenario-studio/useSimulation";
+import { useValidation } from "@/composables/scenario-studio/useValidation";
+import { useActivityFeed } from "@/composables/scenario-studio/useActivityFeed";
+import { useAnalytics } from "@/composables/scenario-studio/useAnalytics";
+import { useOptimization } from "@/composables/scenario-studio/useOptimization";
+import { useScenarioGraph } from "@/composables/scenario-studio/useScenarioGraph";
 
 const props = withDefaults(
     defineProps<{
@@ -27,26 +35,48 @@ const props = withDefaults(
     },
 );
 
+const state = useScenarioStudioState();
+const graph = useScenarioGraph(state);
+const activity = useActivityFeed(state);
+const validation = useValidation(state, graph, {
+    pushActivity: activity.pushActivity,
+});
+const scenarios = useScenarios(state, graph, {
+    pushActivity: activity.pushActivity,
+    graphValidationIssues: validation.graphValidationIssues,
+    validationStatsByScenario: validation.validationStatsByScenario,
+});
+const analytics = useAnalytics(state);
+const simulation = useSimulation(state, {
+    pushActivity: activity.pushActivity,
+    graphValidationIssues: validation.graphValidationIssues,
+    fetchScenarioAnalytics: analytics.fetchScenarioAnalytics,
+});
+useOptimization(state, {
+    pushActivity: activity.pushActivity,
+    graphValidationIssues: validation.graphValidationIssues,
+    upsertScenarioHistory: scenarios.upsertScenarioHistory,
+    resetSimulationState: simulation.resetSimulationState,
+    fetchScenarioAnalytics: analytics.fetchScenarioAnalytics,
+});
+
 const {
     scenarioName,
     scenarioDescription,
     scenarioId,
-    simulationJob,
-    simulationRunCount,
-    simulationProgress,
-    graphValidationIssues,
     isSaving,
     isValidating,
     isSimulating,
-    canCreate,
-    canSaveVersion,
-    canValidate,
+} = state;
+const {
+    simulationJob,
+    simulationRunCount,
+    simulationProgress,
     canSimulate,
-    createScenario,
     runSimulation,
-    saveNewVersion,
-    validateScenario,
-} = useScenarioStudio();
+} = simulation;
+const { graphValidationIssues, canValidate, validateScenario } = validation;
+const { canCreate, canSaveVersion, createScenario, saveNewVersion } = scenarios;
 
 const { loadExampleCanvasGraph } = useScenarioCanvas();
 
