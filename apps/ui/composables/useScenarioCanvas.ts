@@ -5,7 +5,6 @@ import type {
 } from "@/composables/scenario-studio/types";
 import { useScenarioStudioState } from "@/composables/scenario-studio/shared-state";
 import { useScenarioGraph } from "@/composables/scenario-studio/useScenarioGraph";
-import { useScenarios } from "@/composables/scenario-studio/useScenarios";
 
 export type CanvasNodeMeta = {
   x: number;
@@ -64,7 +63,6 @@ function snapshotKey(snapshot: CanvasSnapshot): string {
 export function useScenarioCanvas() {
   const state = useScenarioStudioState();
   const graph = useScenarioGraph(state);
-  const scenarios = useScenarios(state, graph);
   const studio = {
     scenarioName: state.scenarioName,
     scenarioDescription: state.scenarioDescription,
