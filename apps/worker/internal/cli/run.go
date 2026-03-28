@@ -1,22 +1,25 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/athanor/apps/worker/internal/agent"
 	"github.com/athanor/apps/worker/internal/contracts"
 	"github.com/athanor/apps/worker/internal/engine"
 	"github.com/athanor/apps/worker/internal/service"
+	"github.com/redis/go-redis/v9"
 )
 
 func Run(args []string, stdout io.Writer, stderr io.Writer) int {
 	if len(args) == 0 {
-		_, _ = fmt.Fprintln(stderr, "usage: worker run --bundle <path> --request <path> | worker serve --redis-addr <host:port> [--cache-dir <path>]")
+		_, _ = fmt.Fprintln(stderr, "usage: worker run --bundle <path> --request <path> | worker serve --redis-addr <host:port> [--cache-dir <path>] | worker healthcheck")
 		return 1
 	}
 
@@ -25,8 +28,10 @@ func Run(args []string, stdout io.Writer, stderr io.Writer) int {
 		return runCommand(args[1:], stdout, stderr)
 	case "serve":
 		return serveCommand(args[1:], stderr)
+	case "healthcheck":
+		return healthcheckCommand(stderr)
 	default:
-		_, _ = fmt.Fprintln(stderr, "usage: worker run --bundle <path> --request <path> | worker serve --redis-addr <host:port> [--cache-dir <path>]")
+		_, _ = fmt.Fprintln(stderr, "usage: worker run --bundle <path> --request <path> | worker serve --redis-addr <host:port> [--cache-dir <path>] | worker healthcheck")
 		return 1
 	}
 }
@@ -69,6 +74,26 @@ func serveCommand(args []string, stderr io.Writer) int {
 		_, _ = fmt.Fprintln(stderr, err.Error())
 		return 1
 	}
+	return 0
+}
+
+func healthcheckCommand(stderr io.Writer) int {
+	address := os.Getenv("ATHANOR_REDIS_ADDR")
+	if address == "" {
+		address = "127.0.0.1:6379"
+	}
+
+	context, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	client := redis.NewClient(&redis.Options{Addr: address})
+	defer client.Close()
+
+	if err := client.Ping(context).Err(); err != nil {
+		_, _ = fmt.Fprintln(stderr, err.Error())
+		return 1
+	}
+
 	return 0
 }
 

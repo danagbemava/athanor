@@ -6,7 +6,6 @@ import com.athanor.api.scenario.ScenarioGraphValidator;
 import com.athanor.api.scenario.ScenarioService;
 import com.athanor.api.simulation.SimulationBatchExecutor;
 import com.athanor.api.simulation.SimulationService;
-import jakarta.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -20,6 +19,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
@@ -58,7 +59,7 @@ public class OptimizationService implements DisposableBean {
 		this.executor = Executors.newFixedThreadPool(Math.max(1, Runtime.getRuntime().availableProcessors() / 4));
 	}
 
-	@PostConstruct
+	@EventListener(ApplicationReadyEvent.class)
 	void recoverIncompleteJobs() {
 		for (OptimizationJobEntity stored : jobRepository.findByStatusIn(
 			List.of("pending", "running")
