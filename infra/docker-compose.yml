@@ -1,40 +1,53 @@
 services:
   postgres:
     image: postgres:16
-    container_name: athanor-postgres
     environment:
       POSTGRES_USER: athanor
       POSTGRES_PASSWORD: athanor
       POSTGRES_DB: athanor
     ports:
-      - "5432:5432"
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U athanor -d athanor"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
   redis:
     image: redis:7
-    container_name: athanor-redis
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   minio:
     image: minio/minio:latest
-    container_name: athanor-minio
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOTDRIVE_THRESHOLD_SIZE: "0"
     ports:
       - "9000:9000"
       - "9001:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     volumes:
-      - minio_data:/data
+      - ../tmp/minio-data:/data
 
   api:
-    image: eclipse-temurin:21-jre
-    container_name: athanor-api
-    working_dir: /workspace
-    command: ["sh", "-c", "echo 'API scaffold placeholder running'; sleep infinity"]
+    build:
+      context: ../apps/api
+      dockerfile: Dockerfile
+    image: athanor-api:local
     environment:
       ATHANOR_DB_URL: jdbc:postgresql://postgres:5432/athanor
       ATHANOR_DB_USERNAME: athanor
@@ -47,18 +60,119 @@ services:
       ATHANOR_S3_BUCKET: athanor-bundles
       ATHANOR_S3_ACCESS_KEY: minioadmin
       ATHANOR_S3_SECRET_KEY: minioadmin
-    volumes:
-      - ../apps/api:/workspace
+    ports:
+      - "8080:8080"
     depends_on:
-      - postgres
-      - redis
-      - minio
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
 
   worker:
-    image: golang:1.22
-    container_name: athanor-worker
+    build:
+      context: ../apps/worker
+      dockerfile: Dockerfile
+    image: athanor-worker:local
+    command: ["serve", "--cache-dir", "/cache"]
+    environment:
+      ATHANOR_REDIS_ADDR: redis:6379
+      ATHANOR_S3_ENDPOINT: http://minio:9000
+      ATHANOR_S3_BUCKET: athanor-bundles
+      ATHANOR_S3_ACCESS_KEY: minioadmin
+      ATHANOR_S3_SECRET_KEY: minioadmin
+    volumes:
+      - ../tmp/worker-cache:/cache
+    depends_on:
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "/worker", "healthcheck"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+
+  ui:
+    build:
+      context: ../apps/ui
+      dockerfile: Dockerfile
+    image: athanor-ui:local
+    environment:
+      NUXT_PUBLIC_API_BASE_URL: http://127.0.0.1:8080
+      NUXT_API_INTERNAL_BASE_URL: http://api:8080
+      HOST: 0.0.0.0
+      PORT: 3001
+    ports:
+      - "3001:3001"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/builder >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+
+  api-dev:
+    profiles: ["dev-api"]
+    build:
+      context: ../apps/api
+      dockerfile: Dockerfile
+      target: dev
     working_dir: /workspace
-    command: ["sh", "-c", "echo 'Worker scaffold placeholder running'; sleep infinity"]
+    command: ["./gradlew", "--no-daemon", "bootRun"]
+    environment:
+      ATHANOR_DB_URL: jdbc:postgresql://postgres:5432/athanor
+      ATHANOR_DB_USERNAME: athanor
+      ATHANOR_DB_PASSWORD: athanor
+      ATHANOR_DB_DRIVER: org.postgresql.Driver
+      ATHANOR_REDIS_HOST: redis
+      ATHANOR_REDIS_PORT: 6379
+      ATHANOR_WORKER_RUNTIME_MODE: redis
+      ATHANOR_S3_ENDPOINT: http://minio:9000
+      ATHANOR_S3_BUCKET: athanor-bundles
+      ATHANOR_S3_ACCESS_KEY: minioadmin
+      ATHANOR_S3_SECRET_KEY: minioadmin
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../apps/api:/workspace
+      - gradle_cache:/root/.gradle
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+
+  worker-dev:
+    profiles: ["dev-worker"]
+    build:
+      context: ../apps/worker
+      dockerfile: Dockerfile
+      target: dev
+    working_dir: /workspace
+    command: ["go", "run", "./cmd/worker", "serve", "--cache-dir", ".worker-cache"]
     environment:
       ATHANOR_REDIS_ADDR: redis:6379
       ATHANOR_S3_ENDPOINT: http://minio:9000
@@ -67,15 +181,51 @@ services:
       ATHANOR_S3_SECRET_KEY: minioadmin
     volumes:
       - ../apps/worker:/workspace
+      - go_mod_cache:/go/pkg/mod
+      - go_build_cache:/root/.cache/go-build
     depends_on:
-      - redis
-      - minio
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "go", "run", "./cmd/worker", "healthcheck"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+
+  ui-dev:
+    profiles: ["dev-ui"]
+    build:
+      context: ../apps/ui
+      dockerfile: Dockerfile
+      target: dev
+    working_dir: /workspace
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3001"]
+    environment:
+      NUXT_PUBLIC_API_BASE_URL: http://127.0.0.1:8080
+      NUXT_API_INTERNAL_BASE_URL: http://api-dev:8080
+    ports:
+      - "3001:3001"
+    volumes:
+      - ../apps/ui:/workspace
+      - ui_node_modules:/workspace/node_modules
+    depends_on:
+      api-dev:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/builder >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
 
   minio-init:
     image: minio/mc:latest
-    container_name: athanor-minio-init
     depends_on:
-      - minio
+      minio:
+        condition: service_healthy
     entrypoint: >
       /bin/sh -c "
       until /usr/bin/mc alias set local http://minio:9000 minioadmin minioadmin; do sleep 1; done &&
@@ -84,4 +234,7 @@ services:
 
 volumes:
   postgres_data:
-  minio_data:
+  gradle_cache:
+  go_mod_cache:
+  go_build_cache:
+  ui_node_modules:

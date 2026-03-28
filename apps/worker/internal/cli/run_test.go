@@ -110,6 +110,29 @@ func TestRunRejectsInvalidRequest(t *testing.T) {
 	}
 }
 
+func TestHealthcheckReturnsFailureWhenRedisIsUnavailable(t *testing.T) {
+	previous := os.Getenv("ATHANOR_REDIS_ADDR")
+	t.Cleanup(func() {
+		if previous == "" {
+			_ = os.Unsetenv("ATHANOR_REDIS_ADDR")
+			return
+		}
+		_ = os.Setenv("ATHANOR_REDIS_ADDR", previous)
+	})
+
+	_ = os.Setenv("ATHANOR_REDIS_ADDR", "127.0.0.1:1")
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := Run([]string{"healthcheck"}, &stdout, &stderr)
+	if exitCode == 0 {
+		t.Fatal("expected healthcheck to fail when redis is unavailable")
+	}
+	if stderr.Len() == 0 {
+		t.Fatal("expected healthcheck error output")
+	}
+}
+
 func fixtureFiles(t *testing.T, dir string, mode string) (string, string) {
 	t.Helper()
 

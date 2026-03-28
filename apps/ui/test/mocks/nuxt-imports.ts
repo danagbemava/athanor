@@ -12,6 +12,7 @@ export function useState<T>(key: string, init: () => T) {
 
 export function useRuntimeConfig() {
   return {
+    apiInternalBaseUrl: "http://127.0.0.1:8080",
     public: {
       apiBaseUrl: "http://127.0.0.1:8080",
     },

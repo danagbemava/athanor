@@ -8,6 +8,7 @@ export default defineNuxtConfig({
     componentDir: "./components/ui",
   },
   runtimeConfig: {
+    apiInternalBaseUrl: "http://localhost:8080",
     public: {
       apiBaseUrl: "http://localhost:8080",
     },
