@@ -20,6 +20,8 @@ Spring Boot + Spring Modulith API service for:
 ## Run
 
 - `cd apps/api && ./gradlew bootRun`
+- Preferred full-stack local run: `make compose-up`
+- Preferred source-mounted Docker dev run: `make compose-up-dev`
 
 Useful local runtime environment:
 
@@ -33,9 +35,15 @@ Useful local runtime environment:
 - `ATHANOR_DB_USERNAME`
 - `ATHANOR_DB_PASSWORD`
 
-Example Redis-backed local run:
+Example host-run Redis-backed local run:
 
 - `cd apps/api && ATHANOR_REDIS_HOST=127.0.0.1 ATHANOR_REDIS_PORT=6379 ATHANOR_WORKER_RUNTIME_MODE=redis ATHANOR_S3_ENDPOINT=http://127.0.0.1:9000 ATHANOR_S3_BUCKET=athanor-bundles ATHANOR_S3_ACCESS_KEY=minioadmin ATHANOR_S3_SECRET_KEY=minioadmin ./gradlew bootRun`
+
+Docker notes:
+
+- Built-image Compose service uses Postgres + Redis + MinIO from `infra/docker-compose.yml`
+- Dev-profile Compose service runs `./gradlew bootRun` inside a source-mounted container
+- Container health is exposed through `GET /actuator/health`
 
 ## Quality Gates
 

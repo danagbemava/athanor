@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: setup lint test build ci compose-up compose-down \
+.PHONY: setup lint test build ci compose-up compose-up-dev compose-down compose-logs compose-build compose-smoke \
 	api-lint api-test api-build ui-lint ui-test ui-build worker-lint worker-test worker-build schema-validate
 
 setup:
@@ -15,10 +15,22 @@ build: api-build ui-build worker-build
 ci: lint test build
 
 compose-up:
-	docker compose -f infra/docker-compose.yml up -d
+	docker compose -f infra/docker-compose.yml up -d --build
 
 compose-down:
 	docker compose -f infra/docker-compose.yml down
+
+compose-up-dev:
+	docker compose -f infra/docker-compose.yml --profile dev-api --profile dev-worker --profile dev-ui up -d --build postgres redis minio minio-init api-dev worker-dev ui-dev
+
+compose-logs:
+	docker compose -f infra/docker-compose.yml logs -f
+
+compose-build:
+	docker compose -f infra/docker-compose.yml build api worker ui
+
+compose-smoke:
+	bash ./scripts/docker-smoke.sh
 
 api-lint:
 	./scripts/api-lint.sh

@@ -5,6 +5,17 @@ on:
   workflow_dispatch:
 
 jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Docker smoke test
+        run: make compose-smoke
+      - name: Check API image size
+        run: test "$(docker image inspect athanor-api:local --format '{{.Size}}')" -lt 314572800
+      - name: Check Worker image size
+        run: test "$(docker image inspect athanor-worker:local --format '{{.Size}}')" -lt 52428800
+
   api:
     runs-on: ubuntu-latest
     steps:

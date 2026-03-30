@@ -7,7 +7,12 @@ export const nativeControlClass =
 
 export function useScenarioStudioApiBaseUrl() {
   const config = useRuntimeConfig();
-  return computed(() => String(config.public.apiBaseUrl || "http://localhost:8080"));
+  return computed(() => {
+    if (import.meta.server) {
+      return String(config.apiInternalBaseUrl || config.public.apiBaseUrl || "http://localhost:8080");
+    }
+    return String(config.public.apiBaseUrl || "http://localhost:8080");
+  });
 }
 
 export function formatTimestamp(value: string): string {

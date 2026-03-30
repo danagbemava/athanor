@@ -7,7 +7,6 @@ import com.athanor.api.simulation.SimulationBatchExecutor;
 import com.athanor.api.simulation.WorkerExecutionCompletionPayload;
 import com.athanor.api.simulation.WorkerExecutionSummaryMapper;
 import com.athanor.api.telemetry.TelemetryService;
-import jakarta.annotation.PostConstruct;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -16,6 +15,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
@@ -72,7 +73,7 @@ public class JobService implements DisposableBean {
 		meterRegistry.gauge("athanor.jobs.dead_letter.depth", deadLetterJobs);
 	}
 
-	@PostConstruct
+	@EventListener(ApplicationReadyEvent.class)
 	void recoverIncompleteJobs() {
 		for (SimulationJobEntity stored : jobRepository.findByStatusIn(
 			java.util.List.of("pending")

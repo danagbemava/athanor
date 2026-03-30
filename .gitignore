@@ -9,6 +9,8 @@ apps/ui/.output/
 
 # Go / worker runtime
 apps/worker/.worker-cache/
+apps/worker/.worker-cache*/
+tmp/
 
 # Spec package deps
 packages/spec/node_modules/
