@@ -2,10 +2,8 @@
 
 ## How To Read This
 
-This document has three graph sections:
-
-- A structural architecture view that shows ownership boundaries.
-- A runtime view that shows how requests, jobs, bundles, worker events, traces, and analytics move through the system.
+This document currently includes one populated structural architecture view that shows ownership boundaries.
+The runtime sections below are reserved for later expansion.
 
 The authoritative graph source lives in `docs/architecture/knowledge-graph.dot`.
 
