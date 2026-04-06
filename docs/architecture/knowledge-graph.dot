@@ -98,8 +98,7 @@ digraph athanor_knowledge_graph {
   optimization_service -> scenario_service [label="load/apply version"];
   optimization_service -> graph_validator [label="validate search space"];
   optimization_service -> compiler_service [label="compile candidate graph"];
-  optimization_service -> job_service [style=dotted, label="parallel simulation concepts"];
-  optimization_service -> telemetry_service [style=dotted, label="analytics-adjacent outputs"];
+  telemetry_controller -> scenario_service [label="load scenario analytics context"];
 
   spec_schemas -> scenario_service [label="contract boundary"];
   spec_schemas -> compiler_service [label="bundle shape"];

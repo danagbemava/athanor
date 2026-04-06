@@ -97,6 +97,8 @@ flowchart LR
 
 ## Async Simulation Runtime
 
+This section documents the Redis-backed remote-worker path used by `useSimulation`; it is not the synchronous simulation endpoint.
+
 ```mermaid
 flowchart LR
   UI["UI: useSimulation"] -->|"POST /simulate"| Submit["SimulationJobController"]
