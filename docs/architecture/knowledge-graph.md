@@ -3,7 +3,7 @@
 ## How To Read This
 
 This document currently includes one populated structural architecture view that shows ownership boundaries.
-The runtime sections below are reserved for later expansion.
+The runtime sections below capture the async simulation, optimization, and analytics flows.
 
 The authoritative graph source lives in `docs/architecture/knowledge-graph.dot`.
 
@@ -97,7 +97,48 @@ flowchart LR
 
 ## Async Simulation Runtime
 
+```mermaid
+flowchart LR
+  UI["UI: useSimulation"] -->|"POST /simulate"| Submit["SimulationJobController"]
+  Submit --> Job["JobService"]
+  Job --> Compiler["CompilerService"]
+  Compiler -->|"Store compiled bundle"| BundleStore["MinIO / S3 bundle store"]
+  Job -->|"Publish dispatch"| RedisDispatch["Redis dispatch stream"]
+  Worker["Worker: internal/service"] -->|"Consume dispatch"| RedisDispatch
+  Worker -->|"Read bundle by bundle_hash"| BundleStore
+  Worker --> Engine["Worker: internal/engine"]
+  Engine -->|"Run deterministic traces/results"| Worker
+  Worker -->|"Publish progress / complete / failed"| RedisEvents["Redis event stream"]
+  RedisEvents -->|"Ingest job updates"| Job
+  Job -->|"Store summary / result key"| Postgres["Postgres"]
+  Worker -->|"Store execution result"| ResultStore["MinIO / S3 result store"]
+  UI -->|"Poll /runs/{runId}"| Job
+  UI -->|"GET /runs/{runId}/trace-runs"| Job
+  Job -->|"Read paginated traces"| ResultStore
+```
+
 ## Optimization And Analytics
+
+```mermaid
+flowchart LR
+  UIOpt["UI: useOptimization"] -->|"POST /optimize"| OptController["OptimizationController"]
+  OptController --> OptService["OptimizationService"]
+  OptService --> Scenario["ScenarioService"]
+  OptService --> Validator["ScenarioGraphValidator"]
+  OptService --> Compiler["CompilerService"]
+  OptService --> Executor["SimulationBatchExecutor"]
+  Compiler -->|"Store orphan bundles"| MinIO["MinIO / S3"]
+  Executor -->|"Evaluate candidate outcomes"| OptService
+  UIOpt -->|"Poll /optimize/{jobId}"| OptController
+  UIOpt -->|"POST /optimize/{jobId}/apply"| OptController
+  OptService -->|"Create new scenario version"| Scenario
+  Scenario --> Postgres["Postgres"]
+
+  Job["JobService"] -->|"Completed simulation summary"| Telemetry["TelemetryService"]
+  Telemetry -->|"Aggregate scenario analytics"| Postgres
+  UIAnalytics["UI: useAnalytics"] -->|"GET /scenarios/{id}/analytics"| TelemetryController["TelemetryController"]
+  TelemetryController --> Telemetry
+```
 
 ## Notes
 

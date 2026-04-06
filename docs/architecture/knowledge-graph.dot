@@ -76,22 +76,30 @@ digraph athanor_knowledge_graph {
   scenario_service -> graph_validator [label="validate"];
   compiler_controller -> compiler_service [label="internal"];
   simulation_controller -> scenario_service [label="via SimulationService"];
-  simulation_job_controller -> job_service [label="internal"];
+  simulation_job_controller -> job_service [label="HTTP submit async run"];
   optimization_controller -> optimization_service [label="internal"];
   telemetry_controller -> telemetry_service [label="internal"];
+  job_service -> compiler_service [label="compile latest scenario"];
   job_service -> redis_dispatcher [label="dispatch"];
+  job_service -> telemetry_service [label="record completed summary"];
+  job_service -> minio [label="read result blob for trace pages"];
 
   scenario_service -> postgres [label="store/read"];
   job_service -> postgres [label="store/read jobs"];
   optimization_service -> postgres [label="store/read jobs"];
   telemetry_service -> postgres [label="aggregate"];
-  compiler_service -> minio [label="bundle store"];
-  redis_dispatcher -> redis [label="publish dispatch"];
-  worker_runtime -> redis [label="consume/publish"];
-  worker_runtime -> minio [label="bundle/result blobs"];
-  worker_runtime -> worker_engine [label="execute"];
+  compiler_service -> minio [label="store compiled bundle"];
+  redis_dispatcher -> redis [label="Async dispatch stream"];
+  worker_runtime -> redis [label="consume dispatch / publish events"];
+  worker_runtime -> minio [label="Read bundle / write result"];
+  worker_runtime -> worker_engine [label="deterministic execution"];
   worker_engine -> worker_contracts [label="contracts"];
   worker_engine -> worker_rng [label="deterministic RNG"];
+  optimization_service -> scenario_service [label="load/apply version"];
+  optimization_service -> graph_validator [label="validate search space"];
+  optimization_service -> compiler_service [label="compile candidate graph"];
+  optimization_service -> job_service [style=dotted, label="parallel simulation concepts"];
+  optimization_service -> telemetry_service [style=dotted, label="analytics-adjacent outputs"];
 
   spec_schemas -> scenario_service [label="contract boundary"];
   spec_schemas -> compiler_service [label="bundle shape"];
