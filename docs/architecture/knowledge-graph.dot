@@ -6,21 +6,96 @@ digraph athanor_knowledge_graph {
 
   subgraph cluster_ui {
     label="UI";
+    builder [label="UI: builder.vue"];
+    shared_state [label="UI: shared-state.ts"];
+    use_graph [label="UI: useScenarioGraph"];
+    use_validation [label="UI: useValidation"];
+    use_scenarios [label="UI: useScenarios"];
+    use_simulation [label="UI: useSimulation"];
+    use_optimization [label="UI: useOptimization"];
+    use_analytics [label="UI: useAnalytics"];
+    use_activity [label="UI: useActivityFeed"];
   }
 
   subgraph cluster_api {
     label="API";
+    scenario_controller [label="API: ScenarioController"];
+    scenario_service [label="API: ScenarioService"];
+    graph_validator [label="API: ScenarioGraphValidator"];
+    compiler_controller [label="API: CompilerController"];
+    compiler_service [label="API: CompilerService"];
+    simulation_controller [label="API: SimulationController"];
+    simulation_job_controller [label="API: SimulationJobController"];
+    job_service [label="API: JobService"];
+    optimization_controller [label="API: OptimizationController"];
+    optimization_service [label="API: OptimizationService"];
+    telemetry_controller [label="API: TelemetryController"];
+    telemetry_service [label="API: TelemetryService"];
+    redis_dispatcher [label="API: RedisWorkerRuntimeDispatcher"];
   }
 
   subgraph cluster_worker {
     label="Worker";
+    worker_entry [label="Worker: cmd/worker"];
+    worker_runtime [label="Worker: internal/service"];
+    worker_engine [label="Worker: internal/engine"];
+    worker_contracts [label="Worker: internal/contracts"];
+    worker_rng [label="Worker: internal/rng"];
   }
 
   subgraph cluster_spec {
     label="Shared Contracts";
+    spec_schemas [label="Spec: schemas"];
+    spec_fixtures [label="Spec: fixtures"];
+    spec_golden [label="Spec: golden corpus"];
   }
 
   subgraph cluster_infra {
     label="Infrastructure";
+    postgres [label="Postgres", shape=cylinder];
+    redis [label="Redis", shape=cylinder];
+    minio [label="MinIO / S3", shape=cylinder];
   }
+
+  builder -> shared_state [label="owns state"];
+  builder -> use_graph [label="authoring"];
+  builder -> use_validation [label="validate"];
+  builder -> use_scenarios [label="create/version"];
+  builder -> use_simulation [label="simulate"];
+  builder -> use_optimization [label="optimize"];
+  builder -> use_analytics [label="analytics"];
+  builder -> use_activity [label="feed"];
+
+  use_scenarios -> scenario_controller [label="HTTP /scenarios"];
+  use_validation -> scenario_controller [label="HTTP /scenarios/{id}/validate"];
+  use_simulation -> simulation_job_controller [label="HTTP /simulate, /runs/*"];
+  use_optimization -> optimization_controller [label="HTTP /optimize/*"];
+  use_analytics -> telemetry_controller [label="HTTP /scenarios/{id}/analytics"];
+
+  scenario_controller -> scenario_service [label="internal"];
+  scenario_service -> graph_validator [label="validate"];
+  compiler_controller -> compiler_service [label="internal"];
+  simulation_controller -> scenario_service [label="via SimulationService"];
+  simulation_job_controller -> job_service [label="internal"];
+  optimization_controller -> optimization_service [label="internal"];
+  telemetry_controller -> telemetry_service [label="internal"];
+  job_service -> redis_dispatcher [label="dispatch"];
+
+  scenario_service -> postgres [label="store/read"];
+  job_service -> postgres [label="store/read jobs"];
+  optimization_service -> postgres [label="store/read jobs"];
+  telemetry_service -> postgres [label="aggregate"];
+  compiler_service -> minio [label="bundle store"];
+  redis_dispatcher -> redis [label="publish dispatch"];
+  worker_runtime -> redis [label="consume/publish"];
+  worker_runtime -> minio [label="bundle/result blobs"];
+  worker_runtime -> worker_engine [label="execute"];
+  worker_engine -> worker_contracts [label="contracts"];
+  worker_engine -> worker_rng [label="deterministic RNG"];
+
+  spec_schemas -> scenario_service [label="contract boundary"];
+  spec_schemas -> compiler_service [label="bundle shape"];
+  spec_schemas -> worker_contracts [label="execution payloads"];
+  spec_golden -> compiler_service [label="determinism corpus"];
+  spec_golden -> worker_engine [label="determinism corpus"];
 }
