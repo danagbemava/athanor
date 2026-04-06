@@ -107,8 +107,8 @@ digraph athanor_knowledge_graph {
   use_optimization -> use_analytics [style=dashed, label="refresh analytics after apply"];
   use_scenarios -> authoring_result_surface [label="scenario response"];
   use_validation -> authoring_result_surface [label="validation response"];
-  use_scenarios -> activity [label="activity feed"];
-  use_validation -> activity [label="activity feed"];
+  use_scenarios -> use_activity [label="activity feed"];
+  use_validation -> use_activity [label="activity feed"];
   use_scenarios -> local_history [label="scenario history"];
   use_validation -> local_history [label="validation history"];
   use_simulation -> simulation_results_card [label="simulation snapshot"];
@@ -116,7 +116,7 @@ digraph athanor_knowledge_graph {
   quick_actions_card -> shared_state [label="draft state"];
   simulation_results_card -> shared_state [label="trace/result state"];
   optimization_results_card -> shared_state [label="best candidate state"];
-  quick_actions_card -> activity [label="authoring activity"];
+  quick_actions_card -> use_activity [label="authoring activity"];
   quick_actions_card -> local_history [label="authoring history"];
 
   scenario_controller -> scenario_service [label="internal"];
