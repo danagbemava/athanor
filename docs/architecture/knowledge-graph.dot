@@ -27,8 +27,6 @@ digraph athanor_knowledge_graph {
     simulation_controller [label="API: SimulationController"];
     simulation_job_controller [label="API: SimulationJobController"];
     job_service [label="API: JobService"];
-    worker_runtime_event_processor [label="API: WorkerRuntimeEventProcessor"];
-    worker_runtime_event_handler [label="API: WorkerRuntimeEventHandler"];
     optimization_controller [label="API: OptimizationController"];
     optimization_service [label="API: OptimizationService"];
     telemetry_controller [label="API: TelemetryController"];
@@ -95,9 +93,6 @@ digraph athanor_knowledge_graph {
   worker_runtime -> redis [label="consume/publish"];
   worker_runtime -> minio [label="bundle/result blobs"];
   worker_runtime -> worker_engine [label="execute"];
-  redis -> worker_runtime_event_processor [label="worker events"];
-  worker_runtime_event_processor -> worker_runtime_event_handler [label="route events"];
-  worker_runtime_event_handler -> job_service [label="update job state"];
   worker_engine -> worker_contracts [label="contracts"];
   worker_engine -> worker_rng [label="deterministic RNG"];
 
