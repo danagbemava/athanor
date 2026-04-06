@@ -1,0 +1,26 @@
+digraph athanor_knowledge_graph {
+  rankdir=LR;
+  graph [fontsize=10, fontname="Helvetica", compound=true];
+  node [shape=box, fontsize=10, fontname="Helvetica"];
+  edge [fontsize=9, fontname="Helvetica"];
+
+  subgraph cluster_ui {
+    label="UI";
+  }
+
+  subgraph cluster_api {
+    label="API";
+  }
+
+  subgraph cluster_worker {
+    label="Worker";
+  }
+
+  subgraph cluster_spec {
+    label="Shared Contracts";
+  }
+
+  subgraph cluster_infra {
+    label="Infrastructure";
+  }
+}
