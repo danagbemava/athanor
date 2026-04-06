@@ -88,6 +88,7 @@ flowchart LR
 
   Scenarios -->|"HTTP"| Scenario
   Validation -->|"HTTP"| Scenario
+  Validation -->|"Local structural preflight"| SharedState
   Simulation -->|"HTTP"| Jobs
   Optimization -->|"HTTP"| Opt
   Analytics -->|"HTTP"| Telemetry
@@ -132,6 +133,17 @@ flowchart LR
 
 ## Async Simulation Runtime
 
+### Compilation Handoff
+
+```mermaid
+flowchart LR
+  Source["ScenarioService latest version"] --> Compiler["CompilerService"]
+  Compiler --> Validator["ScenarioGraphValidator"]
+  Compiler --> Bundle["Compiled bundle + bundle_hash"]
+  Bundle --> Store["MinIO / S3 bundle store"]
+  Store --> Consumers["JobService and worker/runtime consumers"]
+```
+
 ```mermaid
 flowchart LR
   UI["UI: useSimulation"] -->|"POST /simulate"| Submit["SimulationJobController"]
@@ -155,6 +167,9 @@ flowchart LR
 
 ### Local Simulation Fallback
 
+The API also exposes a synchronous simulation entry point at `POST /scenarios/{id}/simulate`.
+When remote dispatch is disabled, the async job path stays inside the API after compilation and uses the local executor instead of Redis/worker dispatch.
+
 ```mermaid
 flowchart LR
   UI["UI: useSimulation"] -->|"POST /simulate"| Job["JobService"]
@@ -177,11 +192,11 @@ flowchart LR
   OptService --> Scenario["ScenarioService"]
   OptService --> Validator["ScenarioGraphValidator"]
   OptService --> Compiler["CompilerService"]
-  OptService --> Executor["SimulationBatchExecutor"]
+  OptService --> Executor["SimulationBatchExecutor (trace disabled)"]
   Executor --> Score["Score against target distribution"]
   Score --> Best["Best candidate stored in optimization job"]
   Compiler -->|"Store orphan bundles"| MinIO["MinIO / S3"]
-  Executor -->|"Evaluate candidate outcomes"| OptService
+  Executor -->|"Evaluate candidate outcomes without UI-facing traces"| OptService
   UIOpt -->|"Poll /optimize/{jobId}"| OptController
   UIOpt -->|"POST /optimize/{jobId}/apply"| OptController
   OptService -->|"Create new scenario version"| Scenario

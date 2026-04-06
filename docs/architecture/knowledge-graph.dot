@@ -95,6 +95,7 @@ digraph athanor_knowledge_graph {
 
   use_scenarios -> scenario_controller [label="HTTP /scenarios"];
   use_validation -> scenario_controller [label="HTTP /scenarios/{id}/validate"];
+  use_validation -> shared_state [style=dashed, label="local preflight validation"];
   use_simulation -> simulation_job_controller [label="HTTP /simulate"];
   use_simulation -> simulation_controller [style=dashed, label="HTTP /scenarios/{id}/simulate"];
   use_simulation -> runs_route [style=dashed, label="poll /runs/{runId}"];
@@ -152,7 +153,7 @@ digraph athanor_knowledge_graph {
   optimization_candidate_generator -> compiler_service [label="compile candidate graph"];
   optimization_service -> compiler_service [label="compile candidate graph"];
   optimization_service -> optimization_scorer [label="score against target distribution"];
-  optimization_service -> simulation_batch_executor [label="execute candidates"];
+  optimization_service -> simulation_batch_executor [label="execute candidates (trace disabled)"];
   optimization_scorer -> optimization_service [label="best candidate + score"];
   optimization_service -> postgres [label="persist best candidate in optimization job"];
   telemetry_controller -> scenario_service [label="verify latest version"];
