@@ -7,7 +7,12 @@ digraph athanor_knowledge_graph {
   subgraph cluster_ui {
     label="UI";
     builder [label="UI: builder.vue"];
+    quick_actions_card [label="UI: QuickActionsCard"];
+    simulation_results_card [label="UI: SimulationResultsCard"];
+    optimization_results_card [label="UI: OptimizationResultsCard"];
     shared_state [label="UI: shared-state.ts"];
+    authoring_result_surface [label="UI: authoring result surface"];
+    local_history [label="UI: local history"];
     use_graph [label="UI: useScenarioGraph"];
     use_validation [label="UI: useValidation"];
     use_scenarios [label="UI: useScenarios"];
@@ -40,6 +45,8 @@ digraph athanor_knowledge_graph {
     simulation_result_store [label="API: SimulationResultStore"];
     optimization_controller [label="API: OptimizationController"];
     optimization_service [label="API: OptimizationService"];
+    optimization_candidate_generator [label="API: OptimizationCandidateGenerator"];
+    optimization_scorer [label="API: OptimizationScorer"];
     telemetry_controller [label="API: TelemetryController"];
     telemetry_service [label="API: TelemetryService"];
     redis_dispatcher [label="API: RedisWorkerRuntimeDispatcher"];
@@ -50,6 +57,7 @@ digraph athanor_knowledge_graph {
     worker_entry [label="Worker: cmd/worker"];
     worker_cli [label="Worker: internal/cli"];
     worker_runtime [label="Worker: internal/service"];
+    worker_bundle_cache [label="Worker: local bundle cache"];
     worker_engine [label="Worker: internal/engine"];
     worker_agent [label="Worker: internal/agent"];
     worker_contracts [label="Worker: internal/contracts"];
@@ -81,6 +89,9 @@ digraph athanor_knowledge_graph {
   builder -> use_optimization [label="optimize"];
   builder -> use_analytics [label="analytics"];
   builder -> use_activity [label="feed"];
+  builder -> quick_actions_card [label="authoring controls"];
+  builder -> simulation_results_card [label="simulation results"];
+  builder -> optimization_results_card [label="optimization results"];
 
   use_scenarios -> scenario_controller [label="HTTP /scenarios"];
   use_validation -> scenario_controller [label="HTTP /scenarios/{id}/validate"];
@@ -92,6 +103,21 @@ digraph athanor_knowledge_graph {
   use_optimization -> optimize_status_route [style=dashed, label="GET /optimize/{jobId}"];
   use_optimization -> optimize_apply_route [style=dashed, label="POST /optimize/{jobId}/apply"];
   use_analytics -> telemetry_controller [label="HTTP /scenarios/{id}/analytics"];
+  use_optimization -> use_simulation [style=dashed, label="reset simulation state after apply"];
+  use_optimization -> use_analytics [style=dashed, label="refresh analytics after apply"];
+  use_scenarios -> authoring_result_surface [label="scenario response"];
+  use_validation -> authoring_result_surface [label="validation response"];
+  use_scenarios -> activity [label="activity feed"];
+  use_validation -> activity [label="activity feed"];
+  use_scenarios -> local_history [label="scenario history"];
+  use_validation -> local_history [label="validation history"];
+  use_simulation -> simulation_results_card [label="simulation snapshot"];
+  use_optimization -> optimization_results_card [label="optimization snapshot"];
+  quick_actions_card -> shared_state [label="draft state"];
+  simulation_results_card -> shared_state [label="trace/result state"];
+  optimization_results_card -> shared_state [label="best candidate state"];
+  quick_actions_card -> activity [label="authoring activity"];
+  quick_actions_card -> local_history [label="authoring history"];
 
   scenario_controller -> scenario_service [label="internal"];
   scenario_service -> graph_validator [label="validate"];
@@ -102,6 +128,11 @@ digraph athanor_knowledge_graph {
   simulation_controller -> simulation_service [label="internal"];
   simulation_service -> scenario_service [label="load latest version"];
   simulation_job_controller -> job_service [label="HTTP submit async run"];
+  runs_route -> simulation_job_controller [label="GET /runs/{runId}"];
+  runs_route -> job_service [style=dashed, label="poll status"];
+  trace_runs_route -> simulation_job_controller [label="GET /runs/{runId}/trace-runs"];
+  trace_runs_route -> job_service [style=dashed, label="fetch trace page"];
+  trace_runs_route -> simulation_result_store [style=dashed, label="read paginated traces"];
   job_service -> simulation_service [label="normalize + summary"];
   job_service -> compiler_service [label="compile latest scenario"];
   job_service -> simulation_batch_executor [label="local fallback"];
@@ -111,10 +142,19 @@ digraph athanor_knowledge_graph {
   worker_event_handler -> job_service [label="record progress / complete / failure"];
   job_service -> telemetry_service [label="record completed summary"];
   optimization_controller -> optimization_service [label="internal"];
+  optimize_status_route -> optimization_controller [label="GET /optimize/{jobId}"];
+  optimize_status_route -> optimization_service [style=dashed, label="lookup optimization job"];
+  optimize_apply_route -> optimization_controller [label="POST /optimize/{jobId}/apply"];
+  optimize_apply_route -> optimization_service [style=dashed, label="apply best candidate"];
   optimization_service -> scenario_service [label="load/apply version"];
   optimization_service -> graph_validator [label="validate search space"];
+  optimization_service -> optimization_candidate_generator [label="generate candidates"];
+  optimization_candidate_generator -> compiler_service [label="compile candidate graph"];
   optimization_service -> compiler_service [label="compile candidate graph"];
+  optimization_service -> optimization_scorer [label="score against target distribution"];
   optimization_service -> simulation_batch_executor [label="execute candidates"];
+  optimization_scorer -> optimization_service [label="best candidate + score"];
+  optimization_service -> postgres [label="persist best candidate in optimization job"];
   telemetry_controller -> scenario_service [label="verify latest version"];
   telemetry_controller -> telemetry_service [label="analytics snapshot"];
 
@@ -133,6 +173,7 @@ digraph athanor_knowledge_graph {
   worker_cli -> worker_runtime [label="serve"];
   worker_cli -> worker_engine [label="run"];
   worker_cli -> worker_agent [label="policy selection"];
+  worker_runtime -> worker_bundle_cache [label="bundle cache"];
   worker_runtime -> dispatch_stream [style=dashed, label="consume dispatch"];
   worker_runtime -> event_stream [style=dashed, label="publish progress / complete / failed"];
   worker_runtime -> minio [label="read bundle / write result"];
