@@ -64,6 +64,7 @@ flowchart LR
     Postgres["Postgres"]
     Redis["Redis"]
     MinIO["MinIO / S3"]
+    MinioInit["minio-init"]
   end
 
   Builder --> SharedState
@@ -106,6 +107,7 @@ flowchart LR
   Golden --- Compiler
   Golden --- WorkerEngine
   Fixtures --- WorkerContracts
+  MinioInit --> MinIO
 ```
 
 ## Async Simulation Runtime
@@ -128,6 +130,17 @@ flowchart LR
   UI -->|"Poll /runs/{runId}"| Job
   UI -->|"GET /runs/{runId}/trace-runs"| Job
   Job -->|"Read paginated traces"| ResultStore
+```
+
+### Local Simulation Fallback
+
+```mermaid
+flowchart LR
+  UI["UI: useSimulation"] -->|"POST /scenarios/{id}/simulate"| Local["SimulationController"]
+  Local --> Exec["SimulationBatchExecutor"]
+  Exec -->|"Store summary directly"| Postgres["Postgres"]
+  UI -->|"Poll /runs/{runId}"| Job["JobService"]
+  UI -->|"GET /runs/{runId}/trace-runs"| Job
 ```
 
 ## Optimization And Telemetry

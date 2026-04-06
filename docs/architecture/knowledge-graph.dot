@@ -15,6 +15,10 @@ digraph athanor_knowledge_graph {
     use_optimization [label="UI: useOptimization"];
     use_analytics [label="UI: useAnalytics"];
     use_activity [label="UI: useActivityFeed"];
+    runs_route [label="UI route: /runs/{runId}"];
+    trace_runs_route [label="UI route: /runs/{runId}/trace-runs"];
+    optimize_status_route [label="UI route: /optimize/{jobId}"];
+    optimize_apply_route [label="UI route: /optimize/{jobId}/apply"];
   }
 
   subgraph cluster_api {
@@ -31,6 +35,8 @@ digraph athanor_knowledge_graph {
     simulation_job_controller [label="API: SimulationJobController"];
     simulation_batch_executor [label="API: SimulationBatchExecutor"];
     job_service [label="API: JobService"];
+    worker_event_processor [label="API: WorkerRuntimeEventProcessor"];
+    worker_event_handler [label="API: WorkerRuntimeEventHandler"];
     simulation_result_store [label="API: SimulationResultStore"];
     optimization_controller [label="API: OptimizationController"];
     optimization_service [label="API: OptimizationService"];
@@ -62,6 +68,9 @@ digraph athanor_knowledge_graph {
     postgres [label="Postgres", shape=cylinder];
     redis [label="Redis", shape=cylinder];
     minio [label="MinIO / S3", shape=cylinder];
+    minio_init [label="minio-init"];
+    dispatch_stream [label="Redis dispatch stream"];
+    event_stream [label="Redis event stream"];
   }
 
   builder -> shared_state [label="owns state"];
@@ -77,13 +86,19 @@ digraph athanor_knowledge_graph {
   use_validation -> scenario_controller [label="HTTP /scenarios/{id}/validate"];
   use_simulation -> simulation_job_controller [label="HTTP /simulate"];
   use_simulation -> simulation_controller [style=dashed, label="HTTP /scenarios/{id}/simulate"];
+  use_simulation -> runs_route [style=dashed, label="poll /runs/{runId}"];
+  use_simulation -> trace_runs_route [style=dashed, label="GET /runs/{runId}/trace-runs"];
   use_optimization -> optimization_controller [label="HTTP /optimize"];
+  use_optimization -> optimize_status_route [style=dashed, label="GET /optimize/{jobId}"];
+  use_optimization -> optimize_apply_route [style=dashed, label="POST /optimize/{jobId}/apply"];
   use_analytics -> telemetry_controller [label="HTTP /scenarios/{id}/analytics"];
 
   scenario_controller -> scenario_service [label="internal"];
   scenario_service -> graph_validator [label="validate"];
   compiler_controller -> compiler_service [label="internal"];
   bundle_controller -> compiler_service [label="internal"];
+  compiler_service -> scenario_service [label="resolve latest scenario"];
+  compiler_service -> graph_validator [label="validate graph"];
   simulation_controller -> simulation_service [label="internal"];
   simulation_service -> scenario_service [label="load latest version"];
   simulation_job_controller -> job_service [label="HTTP submit async run"];
@@ -92,6 +107,8 @@ digraph athanor_knowledge_graph {
   job_service -> simulation_batch_executor [label="local fallback"];
   job_service -> redis_dispatcher [label="dispatch"];
   job_service -> simulation_result_store [label="read trace pages"];
+  worker_event_processor -> worker_event_handler [label="route event"];
+  worker_event_handler -> job_service [label="record progress / complete / failure"];
   job_service -> telemetry_service [label="record completed summary"];
   optimization_controller -> optimization_service [label="internal"];
   optimization_service -> scenario_service [label="load/apply version"];
@@ -108,12 +125,16 @@ digraph athanor_knowledge_graph {
   compiler_service -> bundle_store [label="bundle store"];
   bundle_store -> minio [label="object store"];
   simulation_result_store -> minio [label="object store"];
-  redis_dispatcher -> redis [style=dashed, label="publish dispatch stream"];
+  minio_init -> minio [label="bucket bootstrap"];
+  redis_dispatcher -> dispatch_stream [style=dashed, label="publish dispatch"];
+  dispatch_stream -> redis [label="backed by"];
+  event_stream -> redis [label="backed by"];
   worker_entry -> worker_cli [label="start"];
   worker_cli -> worker_runtime [label="serve"];
   worker_cli -> worker_engine [label="run"];
   worker_cli -> worker_agent [label="policy selection"];
-  worker_runtime -> redis [style=dashed, label="consume dispatch / publish events"];
+  worker_runtime -> dispatch_stream [style=dashed, label="consume dispatch"];
+  worker_runtime -> event_stream [style=dashed, label="publish progress / complete / failed"];
   worker_runtime -> minio [label="read bundle / write result"];
   worker_runtime -> worker_engine [label="execute"];
   worker_runtime -> worker_agent [label="policy selection"];
@@ -121,6 +142,7 @@ digraph athanor_knowledge_graph {
   worker_engine -> worker_contracts [label="payloads"];
   worker_engine -> worker_rng [label="deterministic RNG"];
   worker_engine -> worker_agent [label="choose actions"];
+  event_stream -> worker_event_processor [style=dashed, label="consume events"];
 
   spec_schemas -> scenario_service [label="contract boundary"];
   spec_schemas -> compiler_service [label="bundle shape"];
