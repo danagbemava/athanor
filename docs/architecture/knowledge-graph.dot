@@ -75,14 +75,11 @@ digraph athanor_knowledge_graph {
   scenario_controller -> scenario_service [label="internal"];
   scenario_service -> graph_validator [label="validate"];
   compiler_controller -> compiler_service [label="internal"];
-  job_service -> compiler_service [label="compile latest scenario"];
-  optimization_service -> compiler_service [label="compile candidate graph"];
   simulation_controller -> scenario_service [label="via SimulationService"];
   simulation_job_controller -> job_service [label="internal"];
   optimization_controller -> optimization_service [label="internal"];
   telemetry_controller -> telemetry_service [label="internal"];
   job_service -> redis_dispatcher [label="dispatch"];
-  worker_entry -> worker_runtime [label="bootstrap"];
 
   scenario_service -> postgres [label="store/read"];
   job_service -> postgres [label="store/read jobs"];
@@ -99,8 +96,6 @@ digraph athanor_knowledge_graph {
   spec_schemas -> scenario_service [label="contract boundary"];
   spec_schemas -> compiler_service [label="bundle shape"];
   spec_schemas -> worker_contracts [label="execution payloads"];
-  spec_fixtures -> compiler_service [style=dotted, label="fixture payloads"];
-  spec_fixtures -> worker_engine [style=dotted, label="golden fixture runs"];
   spec_golden -> compiler_service [label="determinism corpus"];
   spec_golden -> worker_engine [label="determinism corpus"];
 }
