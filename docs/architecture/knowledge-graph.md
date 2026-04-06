@@ -1,9 +1,12 @@
 # Athanor Knowledge Graph
 
+This artifact shows how the Scenario Studio UI, Spring Modulith API, Go worker, shared contracts, and local infrastructure fit together.
+Use it for onboarding and for tracing how scenarios move from authoring to validation, compilation, simulation, optimization, and analytics.
+
 ## How To Read This
 
-This document currently includes one populated structural architecture view that shows ownership boundaries.
-The runtime sections below capture the async simulation, optimization, and analytics flows.
+Read the structural view first, then the runtime sections.
+The structural view shows ownership boundaries; the runtime sections show request, job, bundle, event, trace, and telemetry flows.
 
 The authoritative graph source lives in `docs/architecture/knowledge-graph.dot`.
 
@@ -16,11 +19,11 @@ The authoritative graph source lives in `docs/architecture/knowledge-graph.dot`.
 - `Read`: persistent or object-store read
 - `Poll`: UI status or trace polling
 
-## System Overview
+## Structural Architecture
 
 ```mermaid
 flowchart LR
-  subgraph UI["UI (Nuxt Scenario Studio)"]
+  subgraph UI["UI (Scenario Studio)"]
     Builder["pages/builder.vue"]
     SharedState["shared-state.ts"]
     Graph["useScenarioGraph"]
@@ -42,8 +45,11 @@ flowchart LR
   end
 
   subgraph Worker["Worker (Go runtime)"]
+    WorkerEntry["cmd/worker"]
+    WorkerCli["internal/cli"]
     WorkerService["internal/service"]
     WorkerEngine["internal/engine"]
+    WorkerAgent["internal/agent"]
     WorkerContracts["internal/contracts"]
     WorkerRng["internal/rng"]
   end
@@ -80,11 +86,17 @@ flowchart LR
   Jobs --> Postgres
   Jobs --> Redis
   Jobs --> MinIO
+  Sim --> Scenario
   Opt --> Postgres
   Telemetry --> Postgres
+  WorkerEntry --> WorkerCli
+  WorkerCli --> WorkerService
+  WorkerCli --> WorkerEngine
+  WorkerCli --> WorkerAgent
   WorkerService --> Redis
   WorkerService --> MinIO
   WorkerService --> WorkerEngine
+  WorkerService --> WorkerAgent
   WorkerEngine --> WorkerContracts
   WorkerEngine --> WorkerRng
 
@@ -93,11 +105,10 @@ flowchart LR
   Schemas --- WorkerContracts
   Golden --- Compiler
   Golden --- WorkerEngine
+  Fixtures --- WorkerContracts
 ```
 
 ## Async Simulation Runtime
-
-This section documents the Redis-backed remote-worker path used by `useSimulation`; it is not the synchronous simulation endpoint.
 
 ```mermaid
 flowchart LR
@@ -119,7 +130,7 @@ flowchart LR
   Job -->|"Read paginated traces"| ResultStore
 ```
 
-## Optimization And Analytics
+## Optimization And Telemetry
 
 ```mermaid
 flowchart LR

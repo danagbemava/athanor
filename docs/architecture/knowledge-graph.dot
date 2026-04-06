@@ -23,10 +23,15 @@ digraph athanor_knowledge_graph {
     scenario_service [label="API: ScenarioService"];
     graph_validator [label="API: ScenarioGraphValidator"];
     compiler_controller [label="API: CompilerController"];
+    bundle_controller [label="API: BundleController"];
     compiler_service [label="API: CompilerService"];
+    bundle_store [label="API: BundleStore"];
     simulation_controller [label="API: SimulationController"];
+    simulation_service [label="API: SimulationService"];
     simulation_job_controller [label="API: SimulationJobController"];
+    simulation_batch_executor [label="API: SimulationBatchExecutor"];
     job_service [label="API: JobService"];
+    simulation_result_store [label="API: SimulationResultStore"];
     optimization_controller [label="API: OptimizationController"];
     optimization_service [label="API: OptimizationService"];
     telemetry_controller [label="API: TelemetryController"];
@@ -37,8 +42,10 @@ digraph athanor_knowledge_graph {
   subgraph cluster_worker {
     label="Worker";
     worker_entry [label="Worker: cmd/worker"];
+    worker_cli [label="Worker: internal/cli"];
     worker_runtime [label="Worker: internal/service"];
     worker_engine [label="Worker: internal/engine"];
+    worker_agent [label="Worker: internal/agent"];
     worker_contracts [label="Worker: internal/contracts"];
     worker_rng [label="Worker: internal/rng"];
   }
@@ -68,41 +75,57 @@ digraph athanor_knowledge_graph {
 
   use_scenarios -> scenario_controller [label="HTTP /scenarios"];
   use_validation -> scenario_controller [label="HTTP /scenarios/{id}/validate"];
-  use_simulation -> simulation_job_controller [label="HTTP /simulate, /runs/*"];
-  use_optimization -> optimization_controller [label="HTTP /optimize/*"];
+  use_simulation -> simulation_job_controller [label="HTTP /simulate"];
+  use_simulation -> simulation_controller [style=dashed, label="HTTP /scenarios/{id}/simulate"];
+  use_optimization -> optimization_controller [label="HTTP /optimize"];
   use_analytics -> telemetry_controller [label="HTTP /scenarios/{id}/analytics"];
 
   scenario_controller -> scenario_service [label="internal"];
   scenario_service -> graph_validator [label="validate"];
   compiler_controller -> compiler_service [label="internal"];
-  simulation_controller -> scenario_service [label="via SimulationService"];
+  bundle_controller -> compiler_service [label="internal"];
+  simulation_controller -> simulation_service [label="internal"];
+  simulation_service -> scenario_service [label="load latest version"];
   simulation_job_controller -> job_service [label="HTTP submit async run"];
-  optimization_controller -> optimization_service [label="internal"];
-  telemetry_controller -> telemetry_service [label="internal"];
+  job_service -> simulation_service [label="normalize + summary"];
   job_service -> compiler_service [label="compile latest scenario"];
+  job_service -> simulation_batch_executor [label="local fallback"];
   job_service -> redis_dispatcher [label="dispatch"];
+  job_service -> simulation_result_store [label="read trace pages"];
   job_service -> telemetry_service [label="record completed summary"];
-  job_service -> minio [label="read result blob for trace pages"];
+  optimization_controller -> optimization_service [label="internal"];
+  optimization_service -> scenario_service [label="load/apply version"];
+  optimization_service -> graph_validator [label="validate search space"];
+  optimization_service -> compiler_service [label="compile candidate graph"];
+  optimization_service -> simulation_batch_executor [label="execute candidates"];
+  telemetry_controller -> scenario_service [label="verify latest version"];
+  telemetry_controller -> telemetry_service [label="analytics snapshot"];
 
   scenario_service -> postgres [label="store/read"];
   job_service -> postgres [label="store/read jobs"];
   optimization_service -> postgres [label="store/read jobs"];
   telemetry_service -> postgres [label="aggregate"];
-  compiler_service -> minio [label="store compiled bundle"];
-  redis_dispatcher -> redis [label="Async dispatch stream"];
-  worker_runtime -> redis [label="consume dispatch / publish events"];
-  worker_runtime -> minio [label="Read bundle / write result"];
-  worker_runtime -> worker_engine [label="deterministic execution"];
-  worker_engine -> worker_contracts [label="contracts"];
+  compiler_service -> bundle_store [label="bundle store"];
+  bundle_store -> minio [label="object store"];
+  simulation_result_store -> minio [label="object store"];
+  redis_dispatcher -> redis [style=dashed, label="publish dispatch stream"];
+  worker_entry -> worker_cli [label="start"];
+  worker_cli -> worker_runtime [label="serve"];
+  worker_cli -> worker_engine [label="run"];
+  worker_cli -> worker_agent [label="policy selection"];
+  worker_runtime -> redis [style=dashed, label="consume dispatch / publish events"];
+  worker_runtime -> minio [label="read bundle / write result"];
+  worker_runtime -> worker_engine [label="execute"];
+  worker_runtime -> worker_agent [label="policy selection"];
+  worker_runtime -> worker_contracts [label="decode request/result"];
+  worker_engine -> worker_contracts [label="payloads"];
   worker_engine -> worker_rng [label="deterministic RNG"];
-  optimization_service -> scenario_service [label="load/apply version"];
-  optimization_service -> graph_validator [label="validate search space"];
-  optimization_service -> compiler_service [label="compile candidate graph"];
-  telemetry_controller -> scenario_service [label="load scenario analytics context"];
+  worker_engine -> worker_agent [label="choose actions"];
 
   spec_schemas -> scenario_service [label="contract boundary"];
   spec_schemas -> compiler_service [label="bundle shape"];
   spec_schemas -> worker_contracts [label="execution payloads"];
+  spec_fixtures -> worker_contracts [label="fixtures"];
   spec_golden -> compiler_service [label="determinism corpus"];
   spec_golden -> worker_engine [label="determinism corpus"];
 }
