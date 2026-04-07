@@ -25,6 +25,10 @@ digraph athanor_knowledge_graph {
 
   assert.equal(graph.clusters.length, 2);
   assert.deepEqual(
+    graph.clusters.map((cluster) => cluster.label),
+    ["UI", "API"],
+  );
+  assert.deepEqual(
     graph.nodes.map((node) => [node.id, node.cluster, node.label]),
     [
       ["builder", "UI", "UI: builder.vue"],
