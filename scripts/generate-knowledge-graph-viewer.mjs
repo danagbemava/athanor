@@ -180,7 +180,12 @@ function inferKind(label) {
   return "node";
 }
 
-export function buildGraphModel(dot) {
+function extractRoute(label) {
+  if (!label.startsWith("UI route:")) return null;
+  return label.slice("UI route:".length).trim();
+}
+
+export function buildGraphModel(dot, { sourcePath = "docs/architecture/knowledge-graph.dot" } = {}) {
   const parsed = parseKnowledgeGraphDot(dot);
   const edgesByNode = new Map();
 
@@ -204,6 +209,7 @@ export function buildGraphModel(dot) {
       label: node.label,
       cluster: node.cluster,
       kind: inferKind(node.label),
+      route: extractRoute(node.label),
       tags: deriveTags({ label: node.label, edgeLabels }),
       incoming: related.incoming.map((edge) => ({
         source: edge.source,
@@ -222,7 +228,7 @@ export function buildGraphModel(dot) {
   }));
 
   return {
-    source: "docs/architecture/knowledge-graph.dot",
+    source: sourcePath,
     generatedAt: new Date().toISOString(),
     clusters: parsed.clusters,
     nodes,
@@ -230,7 +236,10 @@ export function buildGraphModel(dot) {
   };
 }
 
-export function renderHtml({ embeddedData = null } = {}) {
+export function renderHtml({
+  embeddedData = null,
+  dataUrl = "./knowledge-graph-data.json",
+} = {}) {
   const embeddedDataMarkup =
     embeddedData === null
       ? ""
@@ -263,13 +272,16 @@ export function renderHtml({ embeddedData = null } = {}) {
       h1,h2,h3 { margin: 0 0 12px; }
       .group { margin-bottom: 18px; }
       .muted { color: var(--muted); }
+      .count { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: #ecf2f7; color: var(--muted); font-size: 12px; }
       input[type="search"] { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
       .chips { display: flex; flex-wrap: wrap; gap: 8px; }
       .chip { border: 1px solid var(--border); background: #fff; border-radius: 999px; padding: 6px 10px; cursor: pointer; }
       .chip.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
       .detail-list { padding-left: 18px; margin: 8px 0 0; }
+      .detail-grid { display: grid; gap: 4px; }
       .summary { font-size: 13px; color: var(--muted); }
       .code { font-family: ui-monospace, SFMono-Regular, monospace; }
+      .pill { display: inline-block; margin: 2px 6px 0 0; padding: 2px 8px; border-radius: 999px; background: #eef6ff; color: #244266; font-size: 12px; }
     </style>
   </head>
   <body>
@@ -289,6 +301,10 @@ export function renderHtml({ embeddedData = null } = {}) {
         <div class="group">
           <h2>Tags</h2>
           <div id="tag-filters" class="chips"></div>
+        </div>
+        <div class="group">
+          <h2>Routes</h2>
+          <div id="route-filters" class="chips"></div>
         </div>
         <div class="group">
           <h2>Summary</h2>
@@ -317,7 +333,7 @@ ${embeddedDataMarkup}    <script type="module">
       }
 
       if (!graphData) {
-        const response = await fetch("./knowledge-graph-data.json");
+        const response = await fetch(${JSON.stringify(dataUrl)});
         graphData = await response.json();
       }
 
@@ -325,10 +341,12 @@ ${embeddedDataMarkup}    <script type="module">
         search: "",
         clusters: new Set(),
         tags: new Set(),
+        routes: new Set(),
       };
 
       const clusterRoot = document.getElementById("cluster-filters");
       const tagRoot = document.getElementById("tag-filters");
+      const routeRoot = document.getElementById("route-filters");
       const detailsRoot = document.getElementById("details");
       const summaryRoot = document.getElementById("summary");
       const searchInput = document.getElementById("search");
@@ -337,14 +355,33 @@ ${embeddedDataMarkup}    <script type="module">
         return [...new Set(graphData.nodes.flatMap((node) => node.tags))].sort();
       }
 
-      function passesFilters(node) {
-        const haystack = [node.label, node.cluster, node.kind, ...node.tags]
+      function allRoutes() {
+        return [...new Set(graphData.nodes.filter((node) => node.route).map((node) => node.route))].sort();
+      }
+
+      function visibleRoutes() {
+        if (state.routes.size === 0) return null;
+        const routeNodes = graphData.nodes.filter((node) => state.routes.has(node.route));
+        const connected = new Set(routeNodes.map((node) => node.id));
+
+        for (const node of routeNodes) {
+          for (const edge of node.incoming) connected.add(edge.source);
+          for (const edge of node.outgoing) connected.add(edge.target);
+        }
+
+        return connected;
+      }
+
+      function passesFilters(node, routeVisible) {
+        const haystack = [node.label, node.cluster, node.kind, node.route ?? "", ...node.tags]
           .join(" ")
           .toLowerCase();
         const searchOk = state.search === "" || haystack.includes(state.search);
         const clusterOk = state.clusters.size === 0 || state.clusters.has(node.cluster);
         const tagOk = state.tags.size === 0 || [...state.tags].every((tag) => node.tags.includes(tag));
-        return searchOk && clusterOk && tagOk;
+        const routeOk =
+          routeVisible === null || routeVisible.has(node.id) || state.routes.has(node.route);
+        return searchOk && clusterOk && tagOk && routeOk;
       }
 
       const cy = cytoscape({
@@ -438,23 +475,37 @@ ${embeddedDataMarkup}    <script type="module">
         }
         const node = graphData.nodes.find((entry) => entry.id === nodeId);
         if (!node) return;
+        const incomingHtml = node.incoming
+          .map((edge) => \`<li><span class="code">\${edge.source}</span> via \${edge.label}</li>\`)
+          .join("");
+        const outgoingHtml = node.outgoing
+          .map((edge) => \`<li><span class="code">\${edge.target}</span> via \${edge.label}</li>\`)
+          .join("");
         detailsRoot.innerHTML = \`
           <div><strong>\${node.label}</strong></div>
           <div class="summary">Cluster: \${node.cluster}</div>
           <div class="summary">Kind: \${node.kind}</div>
+          <div class="summary">Route: \${node.route ?? "none"}</div>
           <div class="summary">Tags: \${node.tags.join(", ") || "none"}</div>
+          <div style="margin-top:8px;">
+            \${node.tags.map((tag) => \`<span class="pill">\${tag}</span>\`).join("")}
+          </div>
           <h3 style="margin-top:12px;">Incoming</h3>
-          <ul class="detail-list">\${node.incoming.map((edge) => \`<li><span class="code">\${edge.source}</span> via \${edge.label}</li>\`).join("") || "<li>None</li>"}</ul>
+          <ul class="detail-list">\${incomingHtml || "<li>None</li>"}</ul>
           <h3 style="margin-top:12px;">Outgoing</h3>
-          <ul class="detail-list">\${node.outgoing.map((edge) => \`<li><span class="code">\${edge.target}</span> via \${edge.label}</li>\`).join("") || "<li>None</li>"}</ul>
+          <ul class="detail-list">\${outgoingHtml || "<li>None</li>"}</ul>
         \`;
       }
 
       function renderAll() {
         renderChips(clusterRoot, graphData.clusters.map((cluster) => cluster.label), state.clusters);
         renderChips(tagRoot, allTags(), state.tags);
+        renderChips(routeRoot, allRoutes(), state.routes);
 
-        const visibleNodeIds = new Set(graphData.nodes.filter(passesFilters).map((node) => node.id));
+        const routeVisible = visibleRoutes();
+        const visibleNodeIds = new Set(
+          graphData.nodes.filter((node) => passesFilters(node, routeVisible)).map((node) => node.id),
+        );
         cy.nodes().forEach((node) => {
           node.toggleClass("dimmed", !visibleNodeIds.has(node.id()));
           node.removeClass("highlight");
@@ -500,11 +551,28 @@ ${embeddedDataMarkup}    <script type="module">
 </html>`;
 }
 
+export async function generateKnowledgeGraphArtifacts({
+  dotFilePath = dotPath,
+  jsonFilePath = jsonPath,
+  htmlFilePath = htmlPath,
+} = {}) {
+  const dot = await fs.readFile(dotFilePath, "utf8");
+  const sourcePath = path.relative(repoRoot, dotFilePath).replaceAll(path.sep, "/");
+  const dataUrl = path
+    .relative(path.dirname(htmlFilePath), jsonFilePath)
+    .replaceAll(path.sep, "/");
+  const model = buildGraphModel(dot, { sourcePath });
+  await fs.writeFile(jsonFilePath, `${JSON.stringify(model, null, 2)}\n`, "utf8");
+  await fs.writeFile(
+    htmlFilePath,
+    renderHtml({ embeddedData: model, dataUrl }),
+    "utf8",
+  );
+  return model;
+}
+
 async function main() {
-  const dot = await fs.readFile(dotPath, "utf8");
-  const model = buildGraphModel(dot);
-  await fs.writeFile(jsonPath, `${JSON.stringify(model, null, 2)}\n`, "utf8");
-  await fs.writeFile(htmlPath, renderHtml(), "utf8");
+  await generateKnowledgeGraphArtifacts();
 }
 
 export function shouldRunAsMainModule(argv1 = process.argv[1]) {
