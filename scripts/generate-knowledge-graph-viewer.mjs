@@ -76,14 +76,38 @@ function extractClusterBlocks(dot) {
   return clusters;
 }
 
+function extractClusterLabel(body, fallbackLabel) {
+  const labelMatch = body.match(/^\s*label\s*=\s*"([^"]+)"\s*;?\s*$/m);
+  return labelMatch ? labelMatch[1] : fallbackLabel;
+}
+
+function serializeEmbeddedData(embeddedData) {
+  const json =
+    typeof embeddedData === "string"
+      ? embeddedData
+      : JSON.stringify(embeddedData, null, 2);
+
+  return json.replace(/[<>&]/g, (character) => {
+    switch (character) {
+      case "<":
+        return "\\u003c";
+      case ">":
+        return "\\u003e";
+      case "&":
+        return "\\u0026";
+      default:
+        return character;
+    }
+  });
+}
+
 export function parseKnowledgeGraphDot(dot) {
   const clusters = [];
   const nodes = [];
   const edges = [];
 
   for (const { name, body } of extractClusterBlocks(dot)) {
-    const labelMatch = body.match(/label="([^"]+)"/);
-    const label = labelMatch ? labelMatch[1] : name;
+    const label = extractClusterLabel(body, name);
     clusters.push({ id: name, label });
 
     for (const nodeMatch of body.matchAll(
@@ -206,7 +230,12 @@ export function buildGraphModel(dot) {
   };
 }
 
-export function renderHtml() {
+export function renderHtml({ embeddedData = null } = {}) {
+  const embeddedDataMarkup =
+    embeddedData === null
+      ? ""
+      : `    <script id="knowledge-graph-data" type="application/json">\n${serializeEmbeddedData(embeddedData)}\n    </script>\n`;
+
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -274,9 +303,23 @@ export function renderHtml() {
         <div id="graph"></div>
       </main>
     </div>
-    <script type="module">
-      const response = await fetch("./knowledge-graph-data.json");
-      const graphData = await response.json();
+${embeddedDataMarkup}    <script type="module">
+      let graphData = null;
+      const embeddedDataElement = document.getElementById("knowledge-graph-data");
+      const embeddedData = embeddedDataElement?.textContent?.trim();
+
+      if (embeddedData) {
+        try {
+          graphData = JSON.parse(embeddedData);
+        } catch (error) {
+          console.warn("Failed to parse embedded knowledge graph data; falling back to fetch.", error);
+        }
+      }
+
+      if (!graphData) {
+        const response = await fetch("./knowledge-graph-data.json");
+        graphData = await response.json();
+      }
 
       const state = {
         search: "",
@@ -464,7 +507,11 @@ async function main() {
   await fs.writeFile(htmlPath, renderHtml(), "utf8");
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+export function shouldRunAsMainModule(argv1 = process.argv[1]) {
+  return typeof argv1 === "string" && import.meta.url === pathToFileURL(argv1).href;
+}
+
+if (shouldRunAsMainModule()) {
   main().catch((error) => {
     console.error(error);
     process.exitCode = 1;

@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 
 import {
   deriveTags,
+  renderHtml,
   parseKnowledgeGraphDot,
+  shouldRunAsMainModule,
 } from "../generate-knowledge-graph-viewer.mjs";
 
 test("parseKnowledgeGraphDot extracts clusters, nodes, and edges", () => {
@@ -43,6 +45,35 @@ digraph athanor_knowledge_graph {
       style: null,
     },
   ]);
+});
+
+test("parseKnowledgeGraphDot resolves cluster labels regardless of statement order", () => {
+  const dot = `
+digraph athanor_knowledge_graph {
+  subgraph cluster_ui {
+    builder [label="UI: builder.vue"];
+    label="UI";
+  }
+  subgraph cluster_api {
+    service [label="API: JobService"];
+    label="API";
+  }
+}
+`;
+
+  const graph = parseKnowledgeGraphDot(dot);
+
+  assert.deepEqual(
+    graph.clusters.map((cluster) => cluster.label),
+    ["UI", "API"],
+  );
+  assert.deepEqual(
+    graph.nodes.map((node) => [node.id, node.cluster]),
+    [
+      ["builder", "UI"],
+      ["service", "API"],
+    ],
+  );
 });
 
 test("deriveTags assigns route, redis, optimization, telemetry, validation, and bundle tags", () => {
@@ -88,4 +119,27 @@ digraph athanor_knowledge_graph {
       style: "dashed",
     },
   ]);
+});
+
+test("renderHtml prefers embedded data and keeps the file fetch fallback", () => {
+  const html = renderHtml({
+    embeddedData: {
+      generatedAt: "2026-04-07T00:00:00.000Z",
+      clusters: [],
+      nodes: [],
+      edges: [],
+    },
+  });
+
+  const embeddedIndex = html.indexOf('id="knowledge-graph-data"');
+  const fetchIndex = html.indexOf('fetch("./knowledge-graph-data.json")');
+
+  assert.ok(embeddedIndex !== -1);
+  assert.ok(fetchIndex !== -1);
+  assert.ok(embeddedIndex < fetchIndex);
+  assert.match(html, /JSON\.parse\(embeddedData\)/);
+});
+
+test("shouldRunAsMainModule is safe when argv1 is missing", () => {
+  assert.equal(shouldRunAsMainModule(undefined), false);
 });
