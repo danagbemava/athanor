@@ -11,6 +11,49 @@ The structural view shows ownership boundaries; the runtime sections show reques
 
 The authoritative graph source lives in `docs/architecture/knowledge-graph.dot`.
 
+## View / Render
+
+You can view the knowledge graph in two ways:
+
+1. Read the Mermaid diagrams in this Markdown file directly.
+2. Render the Graphviz source in `docs/architecture/knowledge-graph.dot`.
+3. Open the standalone searchable viewer in `docs/architecture/knowledge-graph.html`.
+
+From the repository root, generate an SVG with:
+
+```bash
+dot -Tsvg docs/architecture/knowledge-graph.dot -o /tmp/athanor-knowledge-graph.svg
+```
+
+Generate a PNG instead with:
+
+```bash
+dot -Tpng docs/architecture/knowledge-graph.dot -o /tmp/athanor-knowledge-graph.png
+```
+
+If `dot` is not installed, install Graphviz first, then rerun the command.
+
+## Searchable Viewer
+
+The searchable viewer is generated from the DOT source and committed as repo artifacts:
+
+- `docs/architecture/knowledge-graph-data.json`
+- `docs/architecture/knowledge-graph.html`
+
+Regenerate both artifacts from the repository root with:
+
+```bash
+node scripts/generate-knowledge-graph-viewer.mjs
+```
+
+Open the generated HTML file directly in a browser:
+
+```bash
+open docs/architecture/knowledge-graph.html
+```
+
+The viewer embeds the graph data for direct `file://` use and keeps a JSON fetch fallback for hosted or copied artifacts.
+
 ## Legend
 
 - `HTTP`: synchronous request/response edge
