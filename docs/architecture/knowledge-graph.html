@@ -1,0 +1,2743 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Athanor Searchable Knowledge Graph</title>
+    <script src="https://unpkg.com/cytoscape@3.29.2/dist/cytoscape.min.js"></script>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f7f9;
+        --panel: #ffffff;
+        --border: #d8dde6;
+        --text: #172033;
+        --muted: #5f6b85;
+        --accent: #0f766e;
+        --accent-soft: #d7f3ef;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; font: 14px/1.4 system-ui, sans-serif; color: var(--text); background: var(--bg); }
+      .layout { display: grid; grid-template-columns: 340px 1fr; min-height: 100vh; }
+      .sidebar { border-right: 1px solid var(--border); background: var(--panel); padding: 16px; overflow: auto; }
+      .canvas { position: relative; min-height: 100vh; }
+      #graph { position: absolute; inset: 0; }
+      h1,h2,h3 { margin: 0 0 12px; }
+      .group { margin-bottom: 18px; }
+      .muted { color: var(--muted); }
+      .count { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: #ecf2f7; color: var(--muted); font-size: 12px; }
+      input[type="search"] { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
+      .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+      .chip { border: 1px solid var(--border); background: #fff; border-radius: 999px; padding: 6px 10px; cursor: pointer; }
+      .chip.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+      .detail-list { padding-left: 18px; margin: 8px 0 0; }
+      .detail-grid { display: grid; gap: 4px; }
+      .summary { font-size: 13px; color: var(--muted); }
+      .code { font-family: ui-monospace, SFMono-Regular, monospace; }
+      .pill { display: inline-block; margin: 2px 6px 0 0; padding: 2px 8px; border-radius: 999px; background: #eef6ff; color: #244266; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="group">
+          <h1>Athanor Knowledge Graph</h1>
+          <p class="muted">Search exact nodes and richer categories, then inspect relationships in the graph.</p>
+        </div>
+        <div class="group">
+          <input id="search" type="search" placeholder="Search nodes, routes, tags..." />
+        </div>
+        <div class="group">
+          <h2>Clusters</h2>
+          <div id="cluster-filters" class="chips"></div>
+        </div>
+        <div class="group">
+          <h2>Tags</h2>
+          <div id="tag-filters" class="chips"></div>
+        </div>
+        <div class="group">
+          <h2>Routes</h2>
+          <div id="route-filters" class="chips"></div>
+        </div>
+        <div class="group">
+          <h2>Summary</h2>
+          <div id="summary" class="summary"></div>
+        </div>
+        <div class="group">
+          <h2>Selected Node</h2>
+          <div id="details" class="muted">Select a node to inspect inbound and outbound relationships.</div>
+        </div>
+      </aside>
+      <main class="canvas">
+        <div id="graph"></div>
+      </main>
+    </div>
+    <script id="knowledge-graph-data" type="application/json">
+{
+  "source": "docs/architecture/knowledge-graph.dot",
+  "generatedAt": "2026-04-07T11:03:05.077Z",
+  "clusters": [
+    {
+      "id": "ui",
+      "label": "UI"
+    },
+    {
+      "id": "api",
+      "label": "API"
+    },
+    {
+      "id": "worker",
+      "label": "Worker"
+    },
+    {
+      "id": "spec",
+      "label": "Shared Contracts"
+    },
+    {
+      "id": "infra",
+      "label": "Infrastructure"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "builder",
+      "label": "UI: builder.vue",
+      "cluster": "UI",
+      "kind": "ui-surface",
+      "route": null,
+      "tags": [
+        "optimization",
+        "telemetry",
+        "validation"
+      ],
+      "incoming": [],
+      "outgoing": [
+        {
+          "target": "shared_state",
+          "label": "owns state"
+        },
+        {
+          "target": "use_graph",
+          "label": "authoring"
+        },
+        {
+          "target": "use_validation",
+          "label": "validate"
+        },
+        {
+          "target": "use_scenarios",
+          "label": "create/version"
+        },
+        {
+          "target": "use_simulation",
+          "label": "simulate"
+        },
+        {
+          "target": "use_optimization",
+          "label": "optimize"
+        },
+        {
+          "target": "use_analytics",
+          "label": "analytics"
+        },
+        {
+          "target": "use_activity",
+          "label": "feed"
+        },
+        {
+          "target": "quick_actions_card",
+          "label": "authoring controls"
+        },
+        {
+          "target": "simulation_results_card",
+          "label": "simulation results"
+        },
+        {
+          "target": "optimization_results_card",
+          "label": "optimization results"
+        }
+      ]
+    },
+    {
+      "id": "quick_actions_card",
+      "label": "UI: QuickActionsCard",
+      "cluster": "UI",
+      "kind": "ui-surface",
+      "route": null,
+      "tags": [],
+      "incoming": [
+        {
+          "source": "builder",
+          "label": "authoring controls"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "shared_state",
+          "label": "draft state"
+        },
+        {
+          "target": "use_activity",
+          "label": "authoring activity"
+        },
+        {
+          "target": "local_history",
+          "label": "authoring history"
+        }
+      ]
+    },
+    {
+      "id": "simulation_results_card",
+      "label": "UI: SimulationResultsCard",
+      "cluster": "UI",
+      "kind": "ui-surface",
+      "route": null,
+      "tags": [],
+      "incoming": [
+        {
+          "source": "builder",
+          "label": "simulation results"
+        },
+        {
+          "source": "use_simulation",
+          "label": "simulation snapshot"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "shared_state",
+          "label": "trace/result state"
+        }
+      ]
+    },
+    {
+      "id": "optimization_results_card",
+      "label": "UI: OptimizationResultsCard",
+      "cluster": "UI",
+      "kind": "ui-surface",
+      "route": null,
+      "tags": [
+        "optimization"
+      ],
+      "incoming": [
+        {
+          "source": "builder",
+          "label": "optimization results"
+        },
+        {
+          "source": "use_optimization",
+          "label": "optimization snapshot"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "shared_state",
+          "label": "best candidate state"
+        }
+      ]
+    },
+    {
+      "id": "shared_state",
+      "label": "UI: shared-state.ts",
+      "cluster": "UI",
+      "kind": "ui-surface",
+      "route": null,
+      "tags": [
+        "optimization"
+      ],
+      "incoming": [
+        {
+          "source": "builder",
+          "label": "owns state"
+        },
+        {
+          "source": "use_validation",
+          "label": "local preflight validation"
+        },
+        {
+          "source": "quick_actions_card",
+          "label": "draft state"
+        },
+        {
+          "source": "simulation_results_card",
+          "label": "trace/result state"
+        },
+        {
+          "source": "optimization_results_card",
+          "label": "best candidate state"
+        }
+      ],
+      "outgoing": []
+    },
+    {
+      "id": "authoring_result_surface",
+      "label": "UI: authoring result surface",
+      "cluster": "UI",
+      "kind": "ui-surface",
+      "route": null,
+      "tags": [],
+      "incoming": [
+        {
+          "source": "use_scenarios",
+          "label": "scenario response"
+        },
+        {
+          "source": "use_validation",
+          "label": "validation response"
+        }
+      ],
+      "outgoing": []
+    },
+    {
+      "id": "local_history",
+      "label": "UI: local history",
+      "cluster": "UI",
+      "kind": "ui-surface",
+      "route": null,
+      "tags": [],
+      "incoming": [
+        {
+          "source": "use_scenarios",
+          "label": "scenario history"
+        },
+        {
+          "source": "use_validation",
+          "label": "validation history"
+        },
+        {
+          "source": "quick_actions_card",
+          "label": "authoring history"
+        }
+      ],
+      "outgoing": []
+    },
+    {
+      "id": "use_graph",
+      "label": "UI: useScenarioGraph",
+      "cluster": "UI",
+      "kind": "ui-surface",
+      "route": null,
+      "tags": [],
+      "incoming": [
+        {
+          "source": "builder",
+          "label": "authoring"
+        }
+      ],
+      "outgoing": []
+    },
+    {
+      "id": "use_validation",
+      "label": "UI: useValidation",
+      "cluster": "UI",
+      "kind": "ui-surface",
+      "route": null,
+      "tags": [
+        "validation"
+      ],
+      "incoming": [
+        {
+          "source": "builder",
+          "label": "validate"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "scenario_controller",
+          "label": "HTTP /scenarios/{id}/validate"
+        },
+        {
+          "target": "shared_state",
+          "label": "local preflight validation"
+        },
+        {
+          "target": "authoring_result_surface",
+          "label": "validation response"
+        },
+        {
+          "target": "use_activity",
+          "label": "activity feed"
+        },
+        {
+          "target": "local_history",
+          "label": "validation history"
+        }
+      ]
+    },
+    {
+      "id": "use_scenarios",
+      "label": "UI: useScenarios",
+      "cluster": "UI",
+      "kind": "ui-surface",
+      "route": null,
+      "tags": [],
+      "incoming": [
+        {
+          "source": "builder",
+          "label": "create/version"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "scenario_controller",
+          "label": "HTTP /scenarios"
+        },
+        {
+          "target": "authoring_result_surface",
+          "label": "scenario response"
+        },
+        {
+          "target": "use_activity",
+          "label": "activity feed"
+        },
+        {
+          "target": "local_history",
+          "label": "scenario history"
+        }
+      ]
+    },
+    {
+      "id": "use_simulation",
+      "label": "UI: useSimulation",
+      "cluster": "UI",
+      "kind": "ui-surface",
+      "route": null,
+      "tags": [],
+      "incoming": [
+        {
+          "source": "builder",
+          "label": "simulate"
+        },
+        {
+          "source": "use_optimization",
+          "label": "reset simulation state after apply"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "simulation_job_controller",
+          "label": "HTTP /simulate"
+        },
+        {
+          "target": "simulation_controller",
+          "label": "HTTP /scenarios/{id}/simulate"
+        },
+        {
+          "target": "runs_route",
+          "label": "poll /runs/{runId}"
+        },
+        {
+          "target": "trace_runs_route",
+          "label": "GET /runs/{runId}/trace-runs"
+        },
+        {
+          "target": "simulation_results_card",
+          "label": "simulation snapshot"
+        }
+      ]
+    },
+    {
+      "id": "use_optimization",
+      "label": "UI: useOptimization",
+      "cluster": "UI",
+      "kind": "ui-surface",
+      "route": null,
+      "tags": [
+        "optimization",
+        "telemetry"
+      ],
+      "incoming": [
+        {
+          "source": "builder",
+          "label": "optimize"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "optimization_controller",
+          "label": "HTTP /optimize"
+        },
+        {
+          "target": "optimize_status_route",
+          "label": "GET /optimize/{jobId}"
+        },
+        {
+          "target": "optimize_apply_route",
+          "label": "POST /optimize/{jobId}/apply"
+        },
+        {
+          "target": "use_simulation",
+          "label": "reset simulation state after apply"
+        },
+        {
+          "target": "use_analytics",
+          "label": "refresh analytics after apply"
+        },
+        {
+          "target": "optimization_results_card",
+          "label": "optimization snapshot"
+        }
+      ]
+    },
+    {
+      "id": "use_analytics",
+      "label": "UI: useAnalytics",
+      "cluster": "UI",
+      "kind": "ui-surface",
+      "route": null,
+      "tags": [
+        "telemetry"
+      ],
+      "incoming": [
+        {
+          "source": "builder",
+          "label": "analytics"
+        },
+        {
+          "source": "use_optimization",
+          "label": "refresh analytics after apply"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "telemetry_controller",
+          "label": "HTTP /scenarios/{id}/analytics"
+        }
+      ]
+    },
+    {
+      "id": "use_activity",
+      "label": "UI: useActivityFeed",
+      "cluster": "UI",
+      "kind": "ui-surface",
+      "route": null,
+      "tags": [],
+      "incoming": [
+        {
+          "source": "builder",
+          "label": "feed"
+        },
+        {
+          "source": "use_scenarios",
+          "label": "activity feed"
+        },
+        {
+          "source": "use_validation",
+          "label": "activity feed"
+        },
+        {
+          "source": "quick_actions_card",
+          "label": "authoring activity"
+        }
+      ],
+      "outgoing": []
+    },
+    {
+      "id": "runs_route",
+      "label": "UI route: /runs/{runId}",
+      "cluster": "UI",
+      "kind": "route",
+      "route": "/runs/{runId}",
+      "tags": [
+        "route"
+      ],
+      "incoming": [
+        {
+          "source": "use_simulation",
+          "label": "poll /runs/{runId}"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "simulation_job_controller",
+          "label": "GET /runs/{runId}"
+        },
+        {
+          "target": "job_service",
+          "label": "poll status"
+        }
+      ]
+    },
+    {
+      "id": "trace_runs_route",
+      "label": "UI route: /runs/{runId}/trace-runs",
+      "cluster": "UI",
+      "kind": "route",
+      "route": "/runs/{runId}/trace-runs",
+      "tags": [
+        "route"
+      ],
+      "incoming": [
+        {
+          "source": "use_simulation",
+          "label": "GET /runs/{runId}/trace-runs"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "simulation_job_controller",
+          "label": "GET /runs/{runId}/trace-runs"
+        },
+        {
+          "target": "job_service",
+          "label": "fetch trace page"
+        },
+        {
+          "target": "simulation_result_store",
+          "label": "read paginated traces"
+        }
+      ]
+    },
+    {
+      "id": "optimize_status_route",
+      "label": "UI route: /optimize/{jobId}",
+      "cluster": "UI",
+      "kind": "route",
+      "route": "/optimize/{jobId}",
+      "tags": [
+        "route",
+        "optimization"
+      ],
+      "incoming": [
+        {
+          "source": "use_optimization",
+          "label": "GET /optimize/{jobId}"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "optimization_controller",
+          "label": "GET /optimize/{jobId}"
+        },
+        {
+          "target": "optimization_service",
+          "label": "lookup optimization job"
+        }
+      ]
+    },
+    {
+      "id": "optimize_apply_route",
+      "label": "UI route: /optimize/{jobId}/apply",
+      "cluster": "UI",
+      "kind": "route",
+      "route": "/optimize/{jobId}/apply",
+      "tags": [
+        "route",
+        "optimization"
+      ],
+      "incoming": [
+        {
+          "source": "use_optimization",
+          "label": "POST /optimize/{jobId}/apply"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "optimization_controller",
+          "label": "POST /optimize/{jobId}/apply"
+        },
+        {
+          "target": "optimization_service",
+          "label": "apply best candidate"
+        }
+      ]
+    },
+    {
+      "id": "scenario_controller",
+      "label": "API: ScenarioController",
+      "cluster": "API",
+      "kind": "controller",
+      "route": null,
+      "tags": [
+        "validation"
+      ],
+      "incoming": [
+        {
+          "source": "use_scenarios",
+          "label": "HTTP /scenarios"
+        },
+        {
+          "source": "use_validation",
+          "label": "HTTP /scenarios/{id}/validate"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "scenario_service",
+          "label": "internal"
+        }
+      ]
+    },
+    {
+      "id": "scenario_service",
+      "label": "API: ScenarioService",
+      "cluster": "API",
+      "kind": "service",
+      "route": null,
+      "tags": [
+        "validation"
+      ],
+      "incoming": [
+        {
+          "source": "scenario_controller",
+          "label": "internal"
+        },
+        {
+          "source": "compiler_service",
+          "label": "resolve latest scenario"
+        },
+        {
+          "source": "simulation_service",
+          "label": "load latest version"
+        },
+        {
+          "source": "optimization_service",
+          "label": "load/apply version"
+        },
+        {
+          "source": "telemetry_controller",
+          "label": "verify latest version"
+        },
+        {
+          "source": "spec_schemas",
+          "label": "contract boundary"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "graph_validator",
+          "label": "validate"
+        },
+        {
+          "target": "postgres",
+          "label": "store/read"
+        }
+      ]
+    },
+    {
+      "id": "graph_validator",
+      "label": "API: ScenarioGraphValidator",
+      "cluster": "API",
+      "kind": "node",
+      "route": null,
+      "tags": [
+        "validation"
+      ],
+      "incoming": [
+        {
+          "source": "scenario_service",
+          "label": "validate"
+        },
+        {
+          "source": "compiler_service",
+          "label": "validate graph"
+        },
+        {
+          "source": "optimization_service",
+          "label": "validate search space"
+        }
+      ],
+      "outgoing": []
+    },
+    {
+      "id": "compiler_controller",
+      "label": "API: CompilerController",
+      "cluster": "API",
+      "kind": "controller",
+      "route": null,
+      "tags": [],
+      "incoming": [],
+      "outgoing": [
+        {
+          "target": "compiler_service",
+          "label": "internal"
+        }
+      ]
+    },
+    {
+      "id": "bundle_controller",
+      "label": "API: BundleController",
+      "cluster": "API",
+      "kind": "controller",
+      "route": null,
+      "tags": [
+        "bundle"
+      ],
+      "incoming": [],
+      "outgoing": [
+        {
+          "target": "compiler_service",
+          "label": "internal"
+        }
+      ]
+    },
+    {
+      "id": "compiler_service",
+      "label": "API: CompilerService",
+      "cluster": "API",
+      "kind": "service",
+      "route": null,
+      "tags": [
+        "optimization",
+        "validation",
+        "bundle"
+      ],
+      "incoming": [
+        {
+          "source": "compiler_controller",
+          "label": "internal"
+        },
+        {
+          "source": "bundle_controller",
+          "label": "internal"
+        },
+        {
+          "source": "job_service",
+          "label": "compile latest scenario"
+        },
+        {
+          "source": "optimization_candidate_generator",
+          "label": "compile candidate graph"
+        },
+        {
+          "source": "optimization_service",
+          "label": "compile candidate graph"
+        },
+        {
+          "source": "spec_schemas",
+          "label": "bundle shape"
+        },
+        {
+          "source": "spec_golden",
+          "label": "determinism corpus"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "scenario_service",
+          "label": "resolve latest scenario"
+        },
+        {
+          "target": "graph_validator",
+          "label": "validate graph"
+        },
+        {
+          "target": "bundle_store",
+          "label": "bundle store"
+        }
+      ]
+    },
+    {
+      "id": "bundle_store",
+      "label": "API: BundleStore",
+      "cluster": "API",
+      "kind": "store",
+      "route": null,
+      "tags": [
+        "bundle"
+      ],
+      "incoming": [
+        {
+          "source": "compiler_service",
+          "label": "bundle store"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "minio",
+          "label": "object store"
+        }
+      ]
+    },
+    {
+      "id": "simulation_controller",
+      "label": "API: SimulationController",
+      "cluster": "API",
+      "kind": "controller",
+      "route": null,
+      "tags": [],
+      "incoming": [
+        {
+          "source": "use_simulation",
+          "label": "HTTP /scenarios/{id}/simulate"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "simulation_service",
+          "label": "internal"
+        }
+      ]
+    },
+    {
+      "id": "simulation_service",
+      "label": "API: SimulationService",
+      "cluster": "API",
+      "kind": "service",
+      "route": null,
+      "tags": [],
+      "incoming": [
+        {
+          "source": "simulation_controller",
+          "label": "internal"
+        },
+        {
+          "source": "job_service",
+          "label": "normalize + summary"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "scenario_service",
+          "label": "load latest version"
+        }
+      ]
+    },
+    {
+      "id": "simulation_job_controller",
+      "label": "API: SimulationJobController",
+      "cluster": "API",
+      "kind": "controller",
+      "route": null,
+      "tags": [],
+      "incoming": [
+        {
+          "source": "use_simulation",
+          "label": "HTTP /simulate"
+        },
+        {
+          "source": "runs_route",
+          "label": "GET /runs/{runId}"
+        },
+        {
+          "source": "trace_runs_route",
+          "label": "GET /runs/{runId}/trace-runs"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "job_service",
+          "label": "HTTP submit async run"
+        }
+      ]
+    },
+    {
+      "id": "simulation_batch_executor",
+      "label": "API: SimulationBatchExecutor",
+      "cluster": "API",
+      "kind": "node",
+      "route": null,
+      "tags": [
+        "optimization"
+      ],
+      "incoming": [
+        {
+          "source": "job_service",
+          "label": "local fallback"
+        },
+        {
+          "source": "optimization_service",
+          "label": "execute candidates (trace disabled)"
+        }
+      ],
+      "outgoing": []
+    },
+    {
+      "id": "job_service",
+      "label": "API: JobService",
+      "cluster": "API",
+      "kind": "service",
+      "route": null,
+      "tags": [],
+      "incoming": [
+        {
+          "source": "simulation_job_controller",
+          "label": "HTTP submit async run"
+        },
+        {
+          "source": "runs_route",
+          "label": "poll status"
+        },
+        {
+          "source": "trace_runs_route",
+          "label": "fetch trace page"
+        },
+        {
+          "source": "worker_event_handler",
+          "label": "record progress / complete / failure"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "simulation_service",
+          "label": "normalize + summary"
+        },
+        {
+          "target": "compiler_service",
+          "label": "compile latest scenario"
+        },
+        {
+          "target": "simulation_batch_executor",
+          "label": "local fallback"
+        },
+        {
+          "target": "redis_dispatcher",
+          "label": "dispatch"
+        },
+        {
+          "target": "simulation_result_store",
+          "label": "read trace pages"
+        },
+        {
+          "target": "telemetry_service",
+          "label": "record completed summary"
+        },
+        {
+          "target": "postgres",
+          "label": "store/read jobs"
+        }
+      ]
+    },
+    {
+      "id": "worker_event_processor",
+      "label": "API: WorkerRuntimeEventProcessor",
+      "cluster": "API",
+      "kind": "node",
+      "route": null,
+      "tags": [],
+      "incoming": [
+        {
+          "source": "event_stream",
+          "label": "consume events"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "worker_event_handler",
+          "label": "route event"
+        }
+      ]
+    },
+    {
+      "id": "worker_event_handler",
+      "label": "API: WorkerRuntimeEventHandler",
+      "cluster": "API",
+      "kind": "node",
+      "route": null,
+      "tags": [],
+      "incoming": [
+        {
+          "source": "worker_event_processor",
+          "label": "route event"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "job_service",
+          "label": "record progress / complete / failure"
+        }
+      ]
+    },
+    {
+      "id": "simulation_result_store",
+      "label": "API: SimulationResultStore",
+      "cluster": "API",
+      "kind": "store",
+      "route": null,
+      "tags": [
+        "bundle"
+      ],
+      "incoming": [
+        {
+          "source": "trace_runs_route",
+          "label": "read paginated traces"
+        },
+        {
+          "source": "job_service",
+          "label": "read trace pages"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "minio",
+          "label": "object store"
+        }
+      ]
+    },
+    {
+      "id": "optimization_controller",
+      "label": "API: OptimizationController",
+      "cluster": "API",
+      "kind": "controller",
+      "route": null,
+      "tags": [
+        "optimization"
+      ],
+      "incoming": [
+        {
+          "source": "use_optimization",
+          "label": "HTTP /optimize"
+        },
+        {
+          "source": "optimize_status_route",
+          "label": "GET /optimize/{jobId}"
+        },
+        {
+          "source": "optimize_apply_route",
+          "label": "POST /optimize/{jobId}/apply"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "optimization_service",
+          "label": "internal"
+        }
+      ]
+    },
+    {
+      "id": "optimization_service",
+      "label": "API: OptimizationService",
+      "cluster": "API",
+      "kind": "service",
+      "route": null,
+      "tags": [
+        "optimization",
+        "validation"
+      ],
+      "incoming": [
+        {
+          "source": "optimization_controller",
+          "label": "internal"
+        },
+        {
+          "source": "optimize_status_route",
+          "label": "lookup optimization job"
+        },
+        {
+          "source": "optimize_apply_route",
+          "label": "apply best candidate"
+        },
+        {
+          "source": "optimization_scorer",
+          "label": "best candidate + score"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "scenario_service",
+          "label": "load/apply version"
+        },
+        {
+          "target": "graph_validator",
+          "label": "validate search space"
+        },
+        {
+          "target": "optimization_candidate_generator",
+          "label": "generate candidates"
+        },
+        {
+          "target": "compiler_service",
+          "label": "compile candidate graph"
+        },
+        {
+          "target": "optimization_scorer",
+          "label": "score against target distribution"
+        },
+        {
+          "target": "simulation_batch_executor",
+          "label": "execute candidates (trace disabled)"
+        },
+        {
+          "target": "postgres",
+          "label": "persist best candidate in optimization job"
+        },
+        {
+          "target": "postgres",
+          "label": "store/read jobs"
+        }
+      ]
+    },
+    {
+      "id": "optimization_candidate_generator",
+      "label": "API: OptimizationCandidateGenerator",
+      "cluster": "API",
+      "kind": "node",
+      "route": null,
+      "tags": [
+        "optimization"
+      ],
+      "incoming": [
+        {
+          "source": "optimization_service",
+          "label": "generate candidates"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "compiler_service",
+          "label": "compile candidate graph"
+        }
+      ]
+    },
+    {
+      "id": "optimization_scorer",
+      "label": "API: OptimizationScorer",
+      "cluster": "API",
+      "kind": "node",
+      "route": null,
+      "tags": [
+        "optimization"
+      ],
+      "incoming": [
+        {
+          "source": "optimization_service",
+          "label": "score against target distribution"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "optimization_service",
+          "label": "best candidate + score"
+        }
+      ]
+    },
+    {
+      "id": "telemetry_controller",
+      "label": "API: TelemetryController",
+      "cluster": "API",
+      "kind": "controller",
+      "route": null,
+      "tags": [
+        "telemetry"
+      ],
+      "incoming": [
+        {
+          "source": "use_analytics",
+          "label": "HTTP /scenarios/{id}/analytics"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "scenario_service",
+          "label": "verify latest version"
+        },
+        {
+          "target": "telemetry_service",
+          "label": "analytics snapshot"
+        }
+      ]
+    },
+    {
+      "id": "telemetry_service",
+      "label": "API: TelemetryService",
+      "cluster": "API",
+      "kind": "service",
+      "route": null,
+      "tags": [
+        "telemetry"
+      ],
+      "incoming": [
+        {
+          "source": "job_service",
+          "label": "record completed summary"
+        },
+        {
+          "source": "telemetry_controller",
+          "label": "analytics snapshot"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "postgres",
+          "label": "aggregate"
+        }
+      ]
+    },
+    {
+      "id": "redis_dispatcher",
+      "label": "API: RedisWorkerRuntimeDispatcher",
+      "cluster": "API",
+      "kind": "node",
+      "route": null,
+      "tags": [
+        "redis"
+      ],
+      "incoming": [
+        {
+          "source": "job_service",
+          "label": "dispatch"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "dispatch_stream",
+          "label": "publish dispatch"
+        }
+      ]
+    },
+    {
+      "id": "worker_entry",
+      "label": "Worker: cmd/worker",
+      "cluster": "Worker",
+      "kind": "node",
+      "route": null,
+      "tags": [],
+      "incoming": [],
+      "outgoing": [
+        {
+          "target": "worker_cli",
+          "label": "start"
+        }
+      ]
+    },
+    {
+      "id": "worker_cli",
+      "label": "Worker: internal/cli",
+      "cluster": "Worker",
+      "kind": "node",
+      "route": null,
+      "tags": [],
+      "incoming": [
+        {
+          "source": "worker_entry",
+          "label": "start"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "worker_runtime",
+          "label": "serve"
+        },
+        {
+          "target": "worker_engine",
+          "label": "run"
+        },
+        {
+          "target": "worker_agent",
+          "label": "policy selection"
+        }
+      ]
+    },
+    {
+      "id": "worker_runtime",
+      "label": "Worker: internal/service",
+      "cluster": "Worker",
+      "kind": "node",
+      "route": null,
+      "tags": [
+        "bundle"
+      ],
+      "incoming": [
+        {
+          "source": "worker_cli",
+          "label": "serve"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "worker_bundle_cache",
+          "label": "bundle cache"
+        },
+        {
+          "target": "dispatch_stream",
+          "label": "consume dispatch"
+        },
+        {
+          "target": "event_stream",
+          "label": "publish progress / complete / failed"
+        },
+        {
+          "target": "minio",
+          "label": "read bundle / write result"
+        },
+        {
+          "target": "worker_engine",
+          "label": "execute"
+        },
+        {
+          "target": "worker_agent",
+          "label": "policy selection"
+        },
+        {
+          "target": "worker_contracts",
+          "label": "decode request/result"
+        }
+      ]
+    },
+    {
+      "id": "worker_bundle_cache",
+      "label": "Worker: local bundle cache",
+      "cluster": "Worker",
+      "kind": "node",
+      "route": null,
+      "tags": [
+        "bundle"
+      ],
+      "incoming": [
+        {
+          "source": "worker_runtime",
+          "label": "bundle cache"
+        }
+      ],
+      "outgoing": []
+    },
+    {
+      "id": "worker_engine",
+      "label": "Worker: internal/engine",
+      "cluster": "Worker",
+      "kind": "node",
+      "route": null,
+      "tags": [],
+      "incoming": [
+        {
+          "source": "worker_cli",
+          "label": "run"
+        },
+        {
+          "source": "worker_runtime",
+          "label": "execute"
+        },
+        {
+          "source": "spec_golden",
+          "label": "determinism corpus"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "worker_contracts",
+          "label": "payloads"
+        },
+        {
+          "target": "worker_rng",
+          "label": "deterministic RNG"
+        },
+        {
+          "target": "worker_agent",
+          "label": "choose actions"
+        }
+      ]
+    },
+    {
+      "id": "worker_agent",
+      "label": "Worker: internal/agent",
+      "cluster": "Worker",
+      "kind": "node",
+      "route": null,
+      "tags": [],
+      "incoming": [
+        {
+          "source": "worker_cli",
+          "label": "policy selection"
+        },
+        {
+          "source": "worker_runtime",
+          "label": "policy selection"
+        },
+        {
+          "source": "worker_engine",
+          "label": "choose actions"
+        }
+      ],
+      "outgoing": []
+    },
+    {
+      "id": "worker_contracts",
+      "label": "Worker: internal/contracts",
+      "cluster": "Worker",
+      "kind": "node",
+      "route": null,
+      "tags": [],
+      "incoming": [
+        {
+          "source": "worker_runtime",
+          "label": "decode request/result"
+        },
+        {
+          "source": "worker_engine",
+          "label": "payloads"
+        },
+        {
+          "source": "spec_schemas",
+          "label": "execution payloads"
+        },
+        {
+          "source": "spec_fixtures",
+          "label": "fixtures"
+        }
+      ],
+      "outgoing": []
+    },
+    {
+      "id": "worker_rng",
+      "label": "Worker: internal/rng",
+      "cluster": "Worker",
+      "kind": "node",
+      "route": null,
+      "tags": [],
+      "incoming": [
+        {
+          "source": "worker_engine",
+          "label": "deterministic RNG"
+        }
+      ],
+      "outgoing": []
+    },
+    {
+      "id": "spec_schemas",
+      "label": "Spec: schemas",
+      "cluster": "Shared Contracts",
+      "kind": "node",
+      "route": null,
+      "tags": [
+        "bundle"
+      ],
+      "incoming": [],
+      "outgoing": [
+        {
+          "target": "scenario_service",
+          "label": "contract boundary"
+        },
+        {
+          "target": "compiler_service",
+          "label": "bundle shape"
+        },
+        {
+          "target": "worker_contracts",
+          "label": "execution payloads"
+        }
+      ]
+    },
+    {
+      "id": "spec_fixtures",
+      "label": "Spec: fixtures",
+      "cluster": "Shared Contracts",
+      "kind": "node",
+      "route": null,
+      "tags": [],
+      "incoming": [],
+      "outgoing": [
+        {
+          "target": "worker_contracts",
+          "label": "fixtures"
+        }
+      ]
+    },
+    {
+      "id": "spec_golden",
+      "label": "Spec: golden corpus",
+      "cluster": "Shared Contracts",
+      "kind": "node",
+      "route": null,
+      "tags": [],
+      "incoming": [],
+      "outgoing": [
+        {
+          "target": "compiler_service",
+          "label": "determinism corpus"
+        },
+        {
+          "target": "worker_engine",
+          "label": "determinism corpus"
+        }
+      ]
+    },
+    {
+      "id": "postgres",
+      "label": "Postgres",
+      "cluster": "Infrastructure",
+      "kind": "node",
+      "route": null,
+      "tags": [
+        "optimization"
+      ],
+      "incoming": [
+        {
+          "source": "optimization_service",
+          "label": "persist best candidate in optimization job"
+        },
+        {
+          "source": "scenario_service",
+          "label": "store/read"
+        },
+        {
+          "source": "job_service",
+          "label": "store/read jobs"
+        },
+        {
+          "source": "optimization_service",
+          "label": "store/read jobs"
+        },
+        {
+          "source": "telemetry_service",
+          "label": "aggregate"
+        }
+      ],
+      "outgoing": []
+    },
+    {
+      "id": "redis",
+      "label": "Redis",
+      "cluster": "Infrastructure",
+      "kind": "node",
+      "route": null,
+      "tags": [
+        "redis"
+      ],
+      "incoming": [
+        {
+          "source": "dispatch_stream",
+          "label": "backed by"
+        },
+        {
+          "source": "event_stream",
+          "label": "backed by"
+        }
+      ],
+      "outgoing": []
+    },
+    {
+      "id": "minio",
+      "label": "MinIO / S3",
+      "cluster": "Infrastructure",
+      "kind": "node",
+      "route": null,
+      "tags": [
+        "bundle"
+      ],
+      "incoming": [
+        {
+          "source": "bundle_store",
+          "label": "object store"
+        },
+        {
+          "source": "simulation_result_store",
+          "label": "object store"
+        },
+        {
+          "source": "minio_init",
+          "label": "bucket bootstrap"
+        },
+        {
+          "source": "worker_runtime",
+          "label": "read bundle / write result"
+        }
+      ],
+      "outgoing": []
+    },
+    {
+      "id": "minio_init",
+      "label": "minio-init",
+      "cluster": "Infrastructure",
+      "kind": "node",
+      "route": null,
+      "tags": [
+        "bundle"
+      ],
+      "incoming": [],
+      "outgoing": [
+        {
+          "target": "minio",
+          "label": "bucket bootstrap"
+        }
+      ]
+    },
+    {
+      "id": "dispatch_stream",
+      "label": "Redis dispatch stream",
+      "cluster": "Infrastructure",
+      "kind": "stream",
+      "route": null,
+      "tags": [
+        "redis"
+      ],
+      "incoming": [
+        {
+          "source": "redis_dispatcher",
+          "label": "publish dispatch"
+        },
+        {
+          "source": "worker_runtime",
+          "label": "consume dispatch"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "redis",
+          "label": "backed by"
+        }
+      ]
+    },
+    {
+      "id": "event_stream",
+      "label": "Redis event stream",
+      "cluster": "Infrastructure",
+      "kind": "stream",
+      "route": null,
+      "tags": [
+        "redis"
+      ],
+      "incoming": [
+        {
+          "source": "worker_runtime",
+          "label": "publish progress / complete / failed"
+        }
+      ],
+      "outgoing": [
+        {
+          "target": "redis",
+          "label": "backed by"
+        },
+        {
+          "target": "worker_event_processor",
+          "label": "consume events"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "source": "builder",
+      "target": "shared_state",
+      "label": "owns state",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "builder",
+      "target": "use_graph",
+      "label": "authoring",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "builder",
+      "target": "use_validation",
+      "label": "validate",
+      "style": null,
+      "tags": [
+        "validation"
+      ]
+    },
+    {
+      "source": "builder",
+      "target": "use_scenarios",
+      "label": "create/version",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "builder",
+      "target": "use_simulation",
+      "label": "simulate",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "builder",
+      "target": "use_optimization",
+      "label": "optimize",
+      "style": null,
+      "tags": [
+        "optimization"
+      ]
+    },
+    {
+      "source": "builder",
+      "target": "use_analytics",
+      "label": "analytics",
+      "style": null,
+      "tags": [
+        "telemetry"
+      ]
+    },
+    {
+      "source": "builder",
+      "target": "use_activity",
+      "label": "feed",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "builder",
+      "target": "quick_actions_card",
+      "label": "authoring controls",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "builder",
+      "target": "simulation_results_card",
+      "label": "simulation results",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "builder",
+      "target": "optimization_results_card",
+      "label": "optimization results",
+      "style": null,
+      "tags": [
+        "optimization"
+      ]
+    },
+    {
+      "source": "use_scenarios",
+      "target": "scenario_controller",
+      "label": "HTTP /scenarios",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "use_validation",
+      "target": "scenario_controller",
+      "label": "HTTP /scenarios/{id}/validate",
+      "style": null,
+      "tags": [
+        "validation"
+      ]
+    },
+    {
+      "source": "use_validation",
+      "target": "shared_state",
+      "label": "local preflight validation",
+      "style": "dashed",
+      "tags": []
+    },
+    {
+      "source": "use_simulation",
+      "target": "simulation_job_controller",
+      "label": "HTTP /simulate",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "use_simulation",
+      "target": "simulation_controller",
+      "label": "HTTP /scenarios/{id}/simulate",
+      "style": "dashed",
+      "tags": []
+    },
+    {
+      "source": "use_simulation",
+      "target": "runs_route",
+      "label": "poll /runs/{runId}",
+      "style": "dashed",
+      "tags": []
+    },
+    {
+      "source": "use_simulation",
+      "target": "trace_runs_route",
+      "label": "GET /runs/{runId}/trace-runs",
+      "style": "dashed",
+      "tags": []
+    },
+    {
+      "source": "use_optimization",
+      "target": "optimization_controller",
+      "label": "HTTP /optimize",
+      "style": null,
+      "tags": [
+        "optimization"
+      ]
+    },
+    {
+      "source": "use_optimization",
+      "target": "optimize_status_route",
+      "label": "GET /optimize/{jobId}",
+      "style": "dashed",
+      "tags": [
+        "optimization"
+      ]
+    },
+    {
+      "source": "use_optimization",
+      "target": "optimize_apply_route",
+      "label": "POST /optimize/{jobId}/apply",
+      "style": "dashed",
+      "tags": [
+        "optimization"
+      ]
+    },
+    {
+      "source": "use_analytics",
+      "target": "telemetry_controller",
+      "label": "HTTP /scenarios/{id}/analytics",
+      "style": null,
+      "tags": [
+        "telemetry"
+      ]
+    },
+    {
+      "source": "use_optimization",
+      "target": "use_simulation",
+      "label": "reset simulation state after apply",
+      "style": "dashed",
+      "tags": []
+    },
+    {
+      "source": "use_optimization",
+      "target": "use_analytics",
+      "label": "refresh analytics after apply",
+      "style": "dashed",
+      "tags": [
+        "telemetry"
+      ]
+    },
+    {
+      "source": "use_scenarios",
+      "target": "authoring_result_surface",
+      "label": "scenario response",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "use_validation",
+      "target": "authoring_result_surface",
+      "label": "validation response",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "use_scenarios",
+      "target": "use_activity",
+      "label": "activity feed",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "use_validation",
+      "target": "use_activity",
+      "label": "activity feed",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "use_scenarios",
+      "target": "local_history",
+      "label": "scenario history",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "use_validation",
+      "target": "local_history",
+      "label": "validation history",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "use_simulation",
+      "target": "simulation_results_card",
+      "label": "simulation snapshot",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "use_optimization",
+      "target": "optimization_results_card",
+      "label": "optimization snapshot",
+      "style": null,
+      "tags": [
+        "optimization"
+      ]
+    },
+    {
+      "source": "quick_actions_card",
+      "target": "shared_state",
+      "label": "draft state",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "simulation_results_card",
+      "target": "shared_state",
+      "label": "trace/result state",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "optimization_results_card",
+      "target": "shared_state",
+      "label": "best candidate state",
+      "style": null,
+      "tags": [
+        "optimization"
+      ]
+    },
+    {
+      "source": "quick_actions_card",
+      "target": "use_activity",
+      "label": "authoring activity",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "quick_actions_card",
+      "target": "local_history",
+      "label": "authoring history",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "scenario_controller",
+      "target": "scenario_service",
+      "label": "internal",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "scenario_service",
+      "target": "graph_validator",
+      "label": "validate",
+      "style": null,
+      "tags": [
+        "validation"
+      ]
+    },
+    {
+      "source": "compiler_controller",
+      "target": "compiler_service",
+      "label": "internal",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "bundle_controller",
+      "target": "compiler_service",
+      "label": "internal",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "compiler_service",
+      "target": "scenario_service",
+      "label": "resolve latest scenario",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "compiler_service",
+      "target": "graph_validator",
+      "label": "validate graph",
+      "style": null,
+      "tags": [
+        "validation"
+      ]
+    },
+    {
+      "source": "simulation_controller",
+      "target": "simulation_service",
+      "label": "internal",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "simulation_service",
+      "target": "scenario_service",
+      "label": "load latest version",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "simulation_job_controller",
+      "target": "job_service",
+      "label": "HTTP submit async run",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "runs_route",
+      "target": "simulation_job_controller",
+      "label": "GET /runs/{runId}",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "runs_route",
+      "target": "job_service",
+      "label": "poll status",
+      "style": "dashed",
+      "tags": []
+    },
+    {
+      "source": "trace_runs_route",
+      "target": "simulation_job_controller",
+      "label": "GET /runs/{runId}/trace-runs",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "trace_runs_route",
+      "target": "job_service",
+      "label": "fetch trace page",
+      "style": "dashed",
+      "tags": []
+    },
+    {
+      "source": "trace_runs_route",
+      "target": "simulation_result_store",
+      "label": "read paginated traces",
+      "style": "dashed",
+      "tags": []
+    },
+    {
+      "source": "job_service",
+      "target": "simulation_service",
+      "label": "normalize + summary",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "job_service",
+      "target": "compiler_service",
+      "label": "compile latest scenario",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "job_service",
+      "target": "simulation_batch_executor",
+      "label": "local fallback",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "job_service",
+      "target": "redis_dispatcher",
+      "label": "dispatch",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "job_service",
+      "target": "simulation_result_store",
+      "label": "read trace pages",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "worker_event_processor",
+      "target": "worker_event_handler",
+      "label": "route event",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "worker_event_handler",
+      "target": "job_service",
+      "label": "record progress / complete / failure",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "job_service",
+      "target": "telemetry_service",
+      "label": "record completed summary",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "optimization_controller",
+      "target": "optimization_service",
+      "label": "internal",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "optimize_status_route",
+      "target": "optimization_controller",
+      "label": "GET /optimize/{jobId}",
+      "style": null,
+      "tags": [
+        "optimization"
+      ]
+    },
+    {
+      "source": "optimize_status_route",
+      "target": "optimization_service",
+      "label": "lookup optimization job",
+      "style": "dashed",
+      "tags": [
+        "optimization"
+      ]
+    },
+    {
+      "source": "optimize_apply_route",
+      "target": "optimization_controller",
+      "label": "POST /optimize/{jobId}/apply",
+      "style": null,
+      "tags": [
+        "optimization"
+      ]
+    },
+    {
+      "source": "optimize_apply_route",
+      "target": "optimization_service",
+      "label": "apply best candidate",
+      "style": "dashed",
+      "tags": [
+        "optimization"
+      ]
+    },
+    {
+      "source": "optimization_service",
+      "target": "scenario_service",
+      "label": "load/apply version",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "optimization_service",
+      "target": "graph_validator",
+      "label": "validate search space",
+      "style": null,
+      "tags": [
+        "validation"
+      ]
+    },
+    {
+      "source": "optimization_service",
+      "target": "optimization_candidate_generator",
+      "label": "generate candidates",
+      "style": null,
+      "tags": [
+        "optimization"
+      ]
+    },
+    {
+      "source": "optimization_candidate_generator",
+      "target": "compiler_service",
+      "label": "compile candidate graph",
+      "style": null,
+      "tags": [
+        "optimization"
+      ]
+    },
+    {
+      "source": "optimization_service",
+      "target": "compiler_service",
+      "label": "compile candidate graph",
+      "style": null,
+      "tags": [
+        "optimization"
+      ]
+    },
+    {
+      "source": "optimization_service",
+      "target": "optimization_scorer",
+      "label": "score against target distribution",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "optimization_service",
+      "target": "simulation_batch_executor",
+      "label": "execute candidates (trace disabled)",
+      "style": null,
+      "tags": [
+        "optimization"
+      ]
+    },
+    {
+      "source": "optimization_scorer",
+      "target": "optimization_service",
+      "label": "best candidate + score",
+      "style": null,
+      "tags": [
+        "optimization"
+      ]
+    },
+    {
+      "source": "optimization_service",
+      "target": "postgres",
+      "label": "persist best candidate in optimization job",
+      "style": null,
+      "tags": [
+        "optimization"
+      ]
+    },
+    {
+      "source": "telemetry_controller",
+      "target": "scenario_service",
+      "label": "verify latest version",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "telemetry_controller",
+      "target": "telemetry_service",
+      "label": "analytics snapshot",
+      "style": null,
+      "tags": [
+        "telemetry"
+      ]
+    },
+    {
+      "source": "scenario_service",
+      "target": "postgres",
+      "label": "store/read",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "job_service",
+      "target": "postgres",
+      "label": "store/read jobs",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "optimization_service",
+      "target": "postgres",
+      "label": "store/read jobs",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "telemetry_service",
+      "target": "postgres",
+      "label": "aggregate",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "compiler_service",
+      "target": "bundle_store",
+      "label": "bundle store",
+      "style": null,
+      "tags": [
+        "bundle"
+      ]
+    },
+    {
+      "source": "bundle_store",
+      "target": "minio",
+      "label": "object store",
+      "style": null,
+      "tags": [
+        "bundle"
+      ]
+    },
+    {
+      "source": "simulation_result_store",
+      "target": "minio",
+      "label": "object store",
+      "style": null,
+      "tags": [
+        "bundle"
+      ]
+    },
+    {
+      "source": "minio_init",
+      "target": "minio",
+      "label": "bucket bootstrap",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "redis_dispatcher",
+      "target": "dispatch_stream",
+      "label": "publish dispatch",
+      "style": "dashed",
+      "tags": []
+    },
+    {
+      "source": "dispatch_stream",
+      "target": "redis",
+      "label": "backed by",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "event_stream",
+      "target": "redis",
+      "label": "backed by",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "worker_entry",
+      "target": "worker_cli",
+      "label": "start",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "worker_cli",
+      "target": "worker_runtime",
+      "label": "serve",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "worker_cli",
+      "target": "worker_engine",
+      "label": "run",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "worker_cli",
+      "target": "worker_agent",
+      "label": "policy selection",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "worker_runtime",
+      "target": "worker_bundle_cache",
+      "label": "bundle cache",
+      "style": null,
+      "tags": [
+        "bundle"
+      ]
+    },
+    {
+      "source": "worker_runtime",
+      "target": "dispatch_stream",
+      "label": "consume dispatch",
+      "style": "dashed",
+      "tags": []
+    },
+    {
+      "source": "worker_runtime",
+      "target": "event_stream",
+      "label": "publish progress / complete / failed",
+      "style": "dashed",
+      "tags": []
+    },
+    {
+      "source": "worker_runtime",
+      "target": "minio",
+      "label": "read bundle / write result",
+      "style": null,
+      "tags": [
+        "bundle"
+      ]
+    },
+    {
+      "source": "worker_runtime",
+      "target": "worker_engine",
+      "label": "execute",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "worker_runtime",
+      "target": "worker_agent",
+      "label": "policy selection",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "worker_runtime",
+      "target": "worker_contracts",
+      "label": "decode request/result",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "worker_engine",
+      "target": "worker_contracts",
+      "label": "payloads",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "worker_engine",
+      "target": "worker_rng",
+      "label": "deterministic RNG",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "worker_engine",
+      "target": "worker_agent",
+      "label": "choose actions",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "event_stream",
+      "target": "worker_event_processor",
+      "label": "consume events",
+      "style": "dashed",
+      "tags": []
+    },
+    {
+      "source": "spec_schemas",
+      "target": "scenario_service",
+      "label": "contract boundary",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "spec_schemas",
+      "target": "compiler_service",
+      "label": "bundle shape",
+      "style": null,
+      "tags": [
+        "bundle"
+      ]
+    },
+    {
+      "source": "spec_schemas",
+      "target": "worker_contracts",
+      "label": "execution payloads",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "spec_fixtures",
+      "target": "worker_contracts",
+      "label": "fixtures",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "spec_golden",
+      "target": "compiler_service",
+      "label": "determinism corpus",
+      "style": null,
+      "tags": []
+    },
+    {
+      "source": "spec_golden",
+      "target": "worker_engine",
+      "label": "determinism corpus",
+      "style": null,
+      "tags": []
+    }
+  ]
+}
+    </script>
+    <script type="module">
+      let graphData = null;
+      const embeddedDataElement = document.getElementById("knowledge-graph-data");
+      const embeddedData = embeddedDataElement?.textContent?.trim();
+
+      if (embeddedData) {
+        try {
+          graphData = JSON.parse(embeddedData);
+        } catch (error) {
+          console.warn("Failed to parse embedded knowledge graph data; falling back to fetch.", error);
+        }
+      }
+
+      if (!graphData) {
+        const response = await fetch("knowledge-graph-data.json");
+        graphData = await response.json();
+      }
+
+      const state = {
+        search: "",
+        clusters: new Set(),
+        tags: new Set(),
+        routes: new Set(),
+      };
+
+      const clusterRoot = document.getElementById("cluster-filters");
+      const tagRoot = document.getElementById("tag-filters");
+      const routeRoot = document.getElementById("route-filters");
+      const detailsRoot = document.getElementById("details");
+      const summaryRoot = document.getElementById("summary");
+      const searchInput = document.getElementById("search");
+
+      function allTags() {
+        return [...new Set(graphData.nodes.flatMap((node) => node.tags))].sort();
+      }
+
+      function allRoutes() {
+        return [...new Set(graphData.nodes.filter((node) => node.route).map((node) => node.route))].sort();
+      }
+
+      function visibleRoutes() {
+        if (state.routes.size === 0) return null;
+        const routeNodes = graphData.nodes.filter((node) => state.routes.has(node.route));
+        const connected = new Set(routeNodes.map((node) => node.id));
+
+        for (const node of routeNodes) {
+          for (const edge of node.incoming) connected.add(edge.source);
+          for (const edge of node.outgoing) connected.add(edge.target);
+        }
+
+        return connected;
+      }
+
+      function passesFilters(node, routeVisible) {
+        const haystack = [node.label, node.cluster, node.kind, node.route ?? "", ...node.tags]
+          .join(" ")
+          .toLowerCase();
+        const searchOk = state.search === "" || haystack.includes(state.search);
+        const clusterOk = state.clusters.size === 0 || state.clusters.has(node.cluster);
+        const tagOk = state.tags.size === 0 || [...state.tags].every((tag) => node.tags.includes(tag));
+        const routeOk =
+          routeVisible === null || routeVisible.has(node.id) || state.routes.has(node.route);
+        return searchOk && clusterOk && tagOk && routeOk;
+      }
+
+      const cy = cytoscape({
+        container: document.getElementById("graph"),
+        elements: [
+          ...graphData.nodes.map((node) => ({
+            data: {
+              id: node.id,
+              label: node.label,
+              cluster: node.cluster,
+              tags: node.tags,
+              kind: node.kind,
+            },
+          })),
+          ...graphData.edges.map((edge, index) => ({
+            data: {
+              id: `edge-${index}`,
+              source: edge.source,
+              target: edge.target,
+              label: edge.label,
+              style: edge.style ?? "solid",
+            },
+          })),
+        ],
+        style: [
+          {
+            selector: "node",
+            style: {
+              "background-color": "#0f766e",
+              label: "data(label)",
+              color: "#172033",
+              "font-size": 10,
+              "text-valign": "bottom",
+              "text-margin-y": 6,
+              width: 18,
+              height: 18,
+            },
+          },
+          {
+            selector: "edge",
+            style: {
+              width: 2,
+              "line-color": "#8fa1b8",
+              "target-arrow-color": "#8fa1b8",
+              "target-arrow-shape": "triangle",
+              "curve-style": "bezier",
+              label: "data(label)",
+              "font-size": 8,
+              color: "#4b5870",
+              "text-background-color": "#ffffff",
+              "text-background-opacity": 0.85,
+              "text-background-padding": 2,
+            },
+          },
+          { selector: 'edge[style = "dashed"]', style: { "line-style": "dashed" } },
+          { selector: ".dimmed", style: { opacity: 0.16 } },
+          {
+            selector: ".highlight",
+            style: {
+              "background-color": "#c2410c",
+              "line-color": "#c2410c",
+              "target-arrow-color": "#c2410c",
+              opacity: 1,
+            },
+          },
+        ],
+        layout: { name: "cose", fit: true, padding: 30 },
+      });
+
+      function renderChips(root, values, selectedSet) {
+        root.innerHTML = "";
+        for (const value of values) {
+          const button = document.createElement("button");
+          button.className = "chip" + (selectedSet.has(value) ? " active" : "");
+          button.textContent = value;
+          button.type = "button";
+          button.onclick = () => {
+            if (selectedSet.has(value)) selectedSet.delete(value);
+            else selectedSet.add(value);
+            renderAll();
+          };
+          root.appendChild(button);
+        }
+      }
+
+      function renderDetails(nodeId = null) {
+        if (!nodeId) {
+          detailsRoot.innerHTML =
+            '<div class="muted">Select a node to inspect inbound and outbound relationships.</div>';
+          return;
+        }
+        const node = graphData.nodes.find((entry) => entry.id === nodeId);
+        if (!node) return;
+        const incomingHtml = node.incoming
+          .map((edge) => `<li><span class="code">${edge.source}</span> via ${edge.label}</li>`)
+          .join("");
+        const outgoingHtml = node.outgoing
+          .map((edge) => `<li><span class="code">${edge.target}</span> via ${edge.label}</li>`)
+          .join("");
+        detailsRoot.innerHTML = `
+          <div><strong>${node.label}</strong></div>
+          <div class="summary">Cluster: ${node.cluster}</div>
+          <div class="summary">Kind: ${node.kind}</div>
+          <div class="summary">Route: ${node.route ?? "none"}</div>
+          <div class="summary">Tags: ${node.tags.join(", ") || "none"}</div>
+          <div style="margin-top:8px;">
+            ${node.tags.map((tag) => `<span class="pill">${tag}</span>`).join("")}
+          </div>
+          <h3 style="margin-top:12px;">Incoming</h3>
+          <ul class="detail-list">${incomingHtml || "<li>None</li>"}</ul>
+          <h3 style="margin-top:12px;">Outgoing</h3>
+          <ul class="detail-list">${outgoingHtml || "<li>None</li>"}</ul>
+        `;
+      }
+
+      function renderAll() {
+        renderChips(clusterRoot, graphData.clusters.map((cluster) => cluster.label), state.clusters);
+        renderChips(tagRoot, allTags(), state.tags);
+        renderChips(routeRoot, allRoutes(), state.routes);
+
+        const routeVisible = visibleRoutes();
+        const visibleNodeIds = new Set(
+          graphData.nodes.filter((node) => passesFilters(node, routeVisible)).map((node) => node.id),
+        );
+        cy.nodes().forEach((node) => {
+          node.toggleClass("dimmed", !visibleNodeIds.has(node.id()));
+          node.removeClass("highlight");
+        });
+        cy.edges().forEach((edge) => {
+          const visible =
+            visibleNodeIds.has(edge.source().id()) && visibleNodeIds.has(edge.target().id());
+          edge.toggleClass("dimmed", !visible);
+          edge.removeClass("highlight");
+        });
+
+        const visibleEdges = graphData.edges.filter(
+          (edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target),
+        ).length;
+        summaryRoot.textContent = `${visibleNodeIds.size} nodes visible, ${visibleEdges} edges visible, generated ${new Date(graphData.generatedAt).toLocaleString()}`;
+      }
+
+      searchInput.addEventListener("input", (event) => {
+        state.search = event.target.value.trim().toLowerCase();
+        renderAll();
+      });
+
+      cy.on("tap", "node", (event) => {
+        const node = event.target;
+        cy.elements().removeClass("highlight");
+        node.addClass("highlight");
+        node.incomers("edge").addClass("highlight");
+        node.outgoers("edge").addClass("highlight");
+        node.connectedEdges().connectedNodes().addClass("highlight");
+        renderDetails(node.id());
+      });
+
+      cy.on("tap", (event) => {
+        if (event.target === cy) {
+          cy.elements().removeClass("highlight");
+          renderDetails(null);
+        }
+      });
+
+      renderAll();
+    </script>
+  </body>
+</html>

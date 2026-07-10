@@ -1,0 +1,195 @@
+digraph athanor_knowledge_graph {
+  rankdir=LR;
+  graph [fontsize=10, fontname="Helvetica", compound=true];
+  node [shape=box, fontsize=10, fontname="Helvetica"];
+  edge [fontsize=9, fontname="Helvetica"];
+
+  subgraph cluster_ui {
+    label="UI";
+    builder [label="UI: builder.vue"];
+    quick_actions_card [label="UI: QuickActionsCard"];
+    simulation_results_card [label="UI: SimulationResultsCard"];
+    optimization_results_card [label="UI: OptimizationResultsCard"];
+    shared_state [label="UI: shared-state.ts"];
+    authoring_result_surface [label="UI: authoring result surface"];
+    local_history [label="UI: local history"];
+    use_graph [label="UI: useScenarioGraph"];
+    use_validation [label="UI: useValidation"];
+    use_scenarios [label="UI: useScenarios"];
+    use_simulation [label="UI: useSimulation"];
+    use_optimization [label="UI: useOptimization"];
+    use_analytics [label="UI: useAnalytics"];
+    use_activity [label="UI: useActivityFeed"];
+    runs_route [label="UI route: /runs/{runId}"];
+    trace_runs_route [label="UI route: /runs/{runId}/trace-runs"];
+    optimize_status_route [label="UI route: /optimize/{jobId}"];
+    optimize_apply_route [label="UI route: /optimize/{jobId}/apply"];
+  }
+
+  subgraph cluster_api {
+    label="API";
+    scenario_controller [label="API: ScenarioController"];
+    scenario_service [label="API: ScenarioService"];
+    graph_validator [label="API: ScenarioGraphValidator"];
+    compiler_controller [label="API: CompilerController"];
+    bundle_controller [label="API: BundleController"];
+    compiler_service [label="API: CompilerService"];
+    bundle_store [label="API: BundleStore"];
+    simulation_controller [label="API: SimulationController"];
+    simulation_service [label="API: SimulationService"];
+    simulation_job_controller [label="API: SimulationJobController"];
+    simulation_batch_executor [label="API: SimulationBatchExecutor"];
+    job_service [label="API: JobService"];
+    worker_event_processor [label="API: WorkerRuntimeEventProcessor"];
+    worker_event_handler [label="API: WorkerRuntimeEventHandler"];
+    simulation_result_store [label="API: SimulationResultStore"];
+    optimization_controller [label="API: OptimizationController"];
+    optimization_service [label="API: OptimizationService"];
+    optimization_candidate_generator [label="API: OptimizationCandidateGenerator"];
+    optimization_scorer [label="API: OptimizationScorer"];
+    telemetry_controller [label="API: TelemetryController"];
+    telemetry_service [label="API: TelemetryService"];
+    redis_dispatcher [label="API: RedisWorkerRuntimeDispatcher"];
+  }
+
+  subgraph cluster_worker {
+    label="Worker";
+    worker_entry [label="Worker: cmd/worker"];
+    worker_cli [label="Worker: internal/cli"];
+    worker_runtime [label="Worker: internal/service"];
+    worker_bundle_cache [label="Worker: local bundle cache"];
+    worker_engine [label="Worker: internal/engine"];
+    worker_agent [label="Worker: internal/agent"];
+    worker_contracts [label="Worker: internal/contracts"];
+    worker_rng [label="Worker: internal/rng"];
+  }
+
+  subgraph cluster_spec {
+    label="Shared Contracts";
+    spec_schemas [label="Spec: schemas"];
+    spec_fixtures [label="Spec: fixtures"];
+    spec_golden [label="Spec: golden corpus"];
+  }
+
+  subgraph cluster_infra {
+    label="Infrastructure";
+    postgres [label="Postgres", shape=cylinder];
+    redis [label="Redis", shape=cylinder];
+    minio [label="MinIO / S3", shape=cylinder];
+    minio_init [label="minio-init"];
+    dispatch_stream [label="Redis dispatch stream"];
+    event_stream [label="Redis event stream"];
+  }
+
+  builder -> shared_state [label="owns state"];
+  builder -> use_graph [label="authoring"];
+  builder -> use_validation [label="validate"];
+  builder -> use_scenarios [label="create/version"];
+  builder -> use_simulation [label="simulate"];
+  builder -> use_optimization [label="optimize"];
+  builder -> use_analytics [label="analytics"];
+  builder -> use_activity [label="feed"];
+  builder -> quick_actions_card [label="authoring controls"];
+  builder -> simulation_results_card [label="simulation results"];
+  builder -> optimization_results_card [label="optimization results"];
+
+  use_scenarios -> scenario_controller [label="HTTP /scenarios"];
+  use_validation -> scenario_controller [label="HTTP /scenarios/{id}/validate"];
+  use_validation -> shared_state [style=dashed, label="local preflight validation"];
+  use_simulation -> simulation_job_controller [label="HTTP /simulate"];
+  use_simulation -> simulation_controller [style=dashed, label="HTTP /scenarios/{id}/simulate"];
+  use_simulation -> runs_route [style=dashed, label="poll /runs/{runId}"];
+  use_simulation -> trace_runs_route [style=dashed, label="GET /runs/{runId}/trace-runs"];
+  use_optimization -> optimization_controller [label="HTTP /optimize"];
+  use_optimization -> optimize_status_route [style=dashed, label="GET /optimize/{jobId}"];
+  use_optimization -> optimize_apply_route [style=dashed, label="POST /optimize/{jobId}/apply"];
+  use_analytics -> telemetry_controller [label="HTTP /scenarios/{id}/analytics"];
+  use_optimization -> use_simulation [style=dashed, label="reset simulation state after apply"];
+  use_optimization -> use_analytics [style=dashed, label="refresh analytics after apply"];
+  use_scenarios -> authoring_result_surface [label="scenario response"];
+  use_validation -> authoring_result_surface [label="validation response"];
+  use_scenarios -> use_activity [label="activity feed"];
+  use_validation -> use_activity [label="activity feed"];
+  use_scenarios -> local_history [label="scenario history"];
+  use_validation -> local_history [label="validation history"];
+  use_simulation -> simulation_results_card [label="simulation snapshot"];
+  use_optimization -> optimization_results_card [label="optimization snapshot"];
+  quick_actions_card -> shared_state [label="draft state"];
+  simulation_results_card -> shared_state [label="trace/result state"];
+  optimization_results_card -> shared_state [label="best candidate state"];
+  quick_actions_card -> use_activity [label="authoring activity"];
+  quick_actions_card -> local_history [label="authoring history"];
+
+  scenario_controller -> scenario_service [label="internal"];
+  scenario_service -> graph_validator [label="validate"];
+  compiler_controller -> compiler_service [label="internal"];
+  bundle_controller -> compiler_service [label="internal"];
+  compiler_service -> scenario_service [label="resolve latest scenario"];
+  compiler_service -> graph_validator [label="validate graph"];
+  simulation_controller -> simulation_service [label="internal"];
+  simulation_service -> scenario_service [label="load latest version"];
+  simulation_job_controller -> job_service [label="HTTP submit async run"];
+  runs_route -> simulation_job_controller [label="GET /runs/{runId}"];
+  runs_route -> job_service [style=dashed, label="poll status"];
+  trace_runs_route -> simulation_job_controller [label="GET /runs/{runId}/trace-runs"];
+  trace_runs_route -> job_service [style=dashed, label="fetch trace page"];
+  trace_runs_route -> simulation_result_store [style=dashed, label="read paginated traces"];
+  job_service -> simulation_service [label="normalize + summary"];
+  job_service -> compiler_service [label="compile latest scenario"];
+  job_service -> simulation_batch_executor [label="local fallback"];
+  job_service -> redis_dispatcher [label="dispatch"];
+  job_service -> simulation_result_store [label="read trace pages"];
+  worker_event_processor -> worker_event_handler [label="route event"];
+  worker_event_handler -> job_service [label="record progress / complete / failure"];
+  job_service -> telemetry_service [label="record completed summary"];
+  optimization_controller -> optimization_service [label="internal"];
+  optimize_status_route -> optimization_controller [label="GET /optimize/{jobId}"];
+  optimize_status_route -> optimization_service [style=dashed, label="lookup optimization job"];
+  optimize_apply_route -> optimization_controller [label="POST /optimize/{jobId}/apply"];
+  optimize_apply_route -> optimization_service [style=dashed, label="apply best candidate"];
+  optimization_service -> scenario_service [label="load/apply version"];
+  optimization_service -> graph_validator [label="validate search space"];
+  optimization_service -> optimization_candidate_generator [label="generate candidates"];
+  optimization_candidate_generator -> compiler_service [label="compile candidate graph"];
+  optimization_service -> compiler_service [label="compile candidate graph"];
+  optimization_service -> optimization_scorer [label="score against target distribution"];
+  optimization_service -> simulation_batch_executor [label="execute candidates (trace disabled)"];
+  optimization_scorer -> optimization_service [label="best candidate + score"];
+  optimization_service -> postgres [label="persist best candidate in optimization job"];
+  telemetry_controller -> scenario_service [label="verify latest version"];
+  telemetry_controller -> telemetry_service [label="analytics snapshot"];
+
+  scenario_service -> postgres [label="store/read"];
+  job_service -> postgres [label="store/read jobs"];
+  optimization_service -> postgres [label="store/read jobs"];
+  telemetry_service -> postgres [label="aggregate"];
+  compiler_service -> bundle_store [label="bundle store"];
+  bundle_store -> minio [label="object store"];
+  simulation_result_store -> minio [label="object store"];
+  minio_init -> minio [label="bucket bootstrap"];
+  redis_dispatcher -> dispatch_stream [style=dashed, label="publish dispatch"];
+  dispatch_stream -> redis [label="backed by"];
+  event_stream -> redis [label="backed by"];
+  worker_entry -> worker_cli [label="start"];
+  worker_cli -> worker_runtime [label="serve"];
+  worker_cli -> worker_engine [label="run"];
+  worker_cli -> worker_agent [label="policy selection"];
+  worker_runtime -> worker_bundle_cache [label="bundle cache"];
+  worker_runtime -> dispatch_stream [style=dashed, label="consume dispatch"];
+  worker_runtime -> event_stream [style=dashed, label="publish progress / complete / failed"];
+  worker_runtime -> minio [label="read bundle / write result"];
+  worker_runtime -> worker_engine [label="execute"];
+  worker_runtime -> worker_agent [label="policy selection"];
+  worker_runtime -> worker_contracts [label="decode request/result"];
+  worker_engine -> worker_contracts [label="payloads"];
+  worker_engine -> worker_rng [label="deterministic RNG"];
+  worker_engine -> worker_agent [label="choose actions"];
+  event_stream -> worker_event_processor [style=dashed, label="consume events"];
+
+  spec_schemas -> scenario_service [label="contract boundary"];
+  spec_schemas -> compiler_service [label="bundle shape"];
+  spec_schemas -> worker_contracts [label="execution payloads"];
+  spec_fixtures -> worker_contracts [label="fixtures"];
+  spec_golden -> compiler_service [label="determinism corpus"];
+  spec_golden -> worker_engine [label="determinism corpus"];
+}
