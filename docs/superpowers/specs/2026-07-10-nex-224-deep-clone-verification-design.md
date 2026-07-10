@@ -13,7 +13,7 @@ This work completes those verification gaps. It does not change production behav
 
 ## Scope
 
-The implementation will modify `apps/worker/internal/engine/run_test.go` only.
+The implementation will modify `apps/worker/internal/engine/run_test.go` and add a focused `apps/worker/internal/engine/run_benchmark_test.go` benchmark file.
 
 It will:
 
