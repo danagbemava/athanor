@@ -21,7 +21,7 @@ It will:
 2. Strengthen `TestDeterministicWithSameSeed` with JSON-shaped nested maps and slices and compare complete `RunResult` values.
 3. Add `BenchmarkRunTypicalNestedState`, which runs a representative multi-step simulation containing scalar, nested-map, and nested-slice state.
 4. Apply the identical benchmark test temporarily to commit `d4fb5ff^` and compare it with the benchmark on the NEX-224 branch under the same Go version, machine, command, and benchmark duration.
-5. Record the benchmark outputs and computed ratio in the Linear issue or pull request.
+5. Record the benchmark outputs and computed ratio in `docs/performance/nex-224-deep-clone-benchmark.md` as the repository-local evidence trail.
 
 The implementation will not add clone-strategy injection, timing assertions, or production-only performance machinery.
 
@@ -65,4 +65,4 @@ Completion requires:
 - `go test ./internal/engine -count=1` to pass;
 - the worker golden-corpus and full worker test suites to pass;
 - benchmark samples from `d4fb5ff^` and the current branch using identical settings;
-- a documented median overhead ratio below 2x.
+- a median overhead ratio below 2x documented in `docs/performance/nex-224-deep-clone-benchmark.md`.
