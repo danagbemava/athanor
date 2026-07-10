@@ -35,8 +35,30 @@ func TestDeterministicWithSameSeed(t *testing.T) {
 	bundle := Bundle{
 		BundleHash:  "hash-det",
 		EntryNodeID: "chance",
+		InitialState: map[string]any{
+			"inventory": map[string]any{
+				"gold": float64(100),
+				"items": []any{
+					"rope",
+					map[string]any{"name": "torch", "charges": float64(3)},
+				},
+			},
+			"flags": []any{"started", map[string]any{"tutorial": true}},
+		},
 		Nodes: []Node{
-			{ID: "chance", Type: NodeTypeChance, ChanceOptions: []ChanceOption{{To: "a", Weight: 1}, {To: "b", Weight: 3}}},
+			{
+				ID:   "chance",
+				Type: NodeTypeChance,
+				Effects: []Effect{{
+					Op:   EffectSet,
+					Path: "checkpoint",
+					Value: map[string]any{
+						"visited": true,
+						"rewards": []any{"map", float64(5)},
+					},
+				}},
+				ChanceOptions: []ChanceOption{{To: "a", Weight: 1}, {To: "b", Weight: 3}},
+			},
 			{ID: "a", Type: NodeTypeTerminal, Outcome: "A"},
 			{ID: "b", Type: NodeTypeTerminal, Outcome: "B"},
 		},
@@ -45,8 +67,8 @@ func TestDeterministicWithSameSeed(t *testing.T) {
 	r1 := Run(bundle, 7, agent.RandomPolicy{})
 	r2 := Run(bundle, 7, agent.RandomPolicy{})
 
-	if r1.Outcome != r2.Outcome || r1.StepsTaken != r2.StepsTaken {
-		t.Fatalf("expected deterministic runs, got %#v and %#v", r1, r2)
+	if !reflect.DeepEqual(r1, r2) {
+		t.Fatalf("expected complete deterministic results with nested state, got %#v and %#v", r1, r2)
 	}
 }
 
