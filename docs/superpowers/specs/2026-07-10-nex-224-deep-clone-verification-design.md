@@ -2,7 +2,7 @@
 
 ## Context
 
-NEX-224 reports that simulation trace snapshots share nested maps and slices because `cloneState` performs only a top-level copy. The production fix already landed in commit `d4fb5ff`: `cloneState` now delegates every value to recursive `deepCloneValue`, and `TestTraceSnapshotsDeepCloneNestedState` covers nested map isolation.
+NEX-224 reports that simulation trace snapshots share nested maps and slices because `cloneState` performs only a top-level copy. The production fix already landed in commit `d4fb5ff`: `cloneState` now delegates every value to recursive `deepCloneValue`. The existing `TestTraceSnapshotsDeepCloneNestedState` did not reproduce the aliasing defect because its `EffectSet` replaces the top-level map instead of mutating the nested value shared by a shallow clone.
 
 Two acceptance criteria still lack direct evidence:
 
@@ -17,10 +17,11 @@ The implementation will modify `apps/worker/internal/engine/run_test.go` and add
 
 It will:
 
-1. Strengthen `TestDeterministicWithSameSeed` with JSON-shaped nested maps and slices and compare complete `RunResult` values.
-2. Add `BenchmarkRunTypicalNestedState`, which runs a representative multi-step simulation containing scalar, nested-map, and nested-slice state.
-3. Apply the identical benchmark test temporarily to commit `d4fb5ff^` and compare it with the benchmark on the NEX-224 branch under the same Go version, machine, command, and benchmark duration.
-4. Record the benchmark outputs and computed ratio in the Linear issue or pull request.
+1. Add `TestCloneStateDeepCopiesNestedMapsAndSlices`, which directly clones nested map and slice state, mutates the clone, and verifies that the original remains unchanged.
+2. Strengthen `TestDeterministicWithSameSeed` with JSON-shaped nested maps and slices and compare complete `RunResult` values.
+3. Add `BenchmarkRunTypicalNestedState`, which runs a representative multi-step simulation containing scalar, nested-map, and nested-slice state.
+4. Apply the identical benchmark test temporarily to commit `d4fb5ff^` and compare it with the benchmark on the NEX-224 branch under the same Go version, machine, command, and benchmark duration.
+5. Record the benchmark outputs and computed ratio in the Linear issue or pull request.
 
 The implementation will not add clone-strategy injection, timing assertions, or production-only performance machinery.
 
@@ -47,7 +48,7 @@ The acceptance criterion passes when the ratio is below `2.0`. The benchmark its
 
 `TestDeterministicWithSameSeed` will initialize nested inventory/profile data and include nested effect values. It will run the same bundle twice with the same seed and compare the complete results using `reflect.DeepEqual`.
 
-This proves that outcome, trace snapshots, selected options, metrics, and nested final state remain deterministic together. The existing trace-isolation regression test remains focused on aliasing and is not duplicated.
+This proves that outcome, trace snapshots, selected options, metrics, and nested final state remain deterministic together. Aliasing is covered separately by `TestCloneStateDeepCopiesNestedMapsAndSlices`, whose direct clone-and-mutate fixture deterministically exercises recursive isolation for nested maps, maps inside slices, and scalar slice elements.
 
 ## Failure Handling
 
@@ -59,7 +60,7 @@ If the ratio is 2x or greater, implementation stops before changing production c
 
 Completion requires:
 
-- the existing trace-isolation regression test to fail against a deliberately shallow clone and pass against the current deep clone;
+- the direct `TestCloneStateDeepCopiesNestedMapsAndSlices` regression test to fail against a deliberately shallow clone and pass against the current deep clone;
 - the strengthened same-seed test to compare complete results containing nested map and slice fixtures;
 - `go test ./internal/engine -count=1` to pass;
 - the worker golden-corpus and full worker test suites to pass;
