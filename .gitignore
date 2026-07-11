@@ -15,5 +15,8 @@ tmp/
 # Spec package deps
 packages/spec/node_modules/
 
+# Local feature worktrees
+.worktrees/
+
 # OS
 .DS_Store

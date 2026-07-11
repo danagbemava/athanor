@@ -35,8 +35,30 @@ func TestDeterministicWithSameSeed(t *testing.T) {
 	bundle := Bundle{
 		BundleHash:  "hash-det",
 		EntryNodeID: "chance",
+		InitialState: map[string]any{
+			"inventory": map[string]any{
+				"gold": float64(100),
+				"items": []any{
+					"rope",
+					map[string]any{"name": "torch", "charges": float64(3)},
+				},
+			},
+			"flags": []any{"started", map[string]any{"tutorial": true}},
+		},
 		Nodes: []Node{
-			{ID: "chance", Type: NodeTypeChance, ChanceOptions: []ChanceOption{{To: "a", Weight: 1}, {To: "b", Weight: 3}}},
+			{
+				ID:   "chance",
+				Type: NodeTypeChance,
+				Effects: []Effect{{
+					Op:   EffectSet,
+					Path: "checkpoint",
+					Value: map[string]any{
+						"visited": true,
+						"rewards": []any{"map", float64(5)},
+					},
+				}},
+				ChanceOptions: []ChanceOption{{To: "a", Weight: 1}, {To: "b", Weight: 3}},
+			},
 			{ID: "a", Type: NodeTypeTerminal, Outcome: "A"},
 			{ID: "b", Type: NodeTypeTerminal, Outcome: "B"},
 		},
@@ -45,8 +67,8 @@ func TestDeterministicWithSameSeed(t *testing.T) {
 	r1 := Run(bundle, 7, agent.RandomPolicy{})
 	r2 := Run(bundle, 7, agent.RandomPolicy{})
 
-	if r1.Outcome != r2.Outcome || r1.StepsTaken != r2.StepsTaken {
-		t.Fatalf("expected deterministic runs, got %#v and %#v", r1, r2)
+	if !reflect.DeepEqual(r1, r2) {
+		t.Fatalf("expected complete deterministic results with nested state, got %#v and %#v", r1, r2)
 	}
 }
 
@@ -160,4 +182,45 @@ func TestTraceSnapshotsDeepCloneNestedState(t *testing.T) {
 	if finalState["count"] != float64(2) {
 		t.Fatalf("expected final nested state to be 2, got %#v", finalState["count"])
 	}
+}
+
+func TestCloneStateDeepCopiesNestedMapsAndSlices(t *testing.T) {
+	original := map[string]any{
+		"inventory": map[string]any{
+			"gold": float64(100),
+			"items": []any{
+				map[string]any{"name": "torch"},
+				"rope",
+			},
+		},
+	}
+
+	cloned := cloneState(original)
+	clonedInventory := cloned["inventory"].(map[string]any)
+	clonedItems := clonedInventory["items"].([]any)
+	clonedInventory["gold"] = float64(50)
+	clonedItems[0].(map[string]any)["name"] = "lantern"
+	clonedItems[1] = "flint"
+
+	originalInventory := original["inventory"].(map[string]any)
+	originalItems := originalInventory["items"].([]any)
+
+	t.Run("nested map scalar", func(t *testing.T) {
+		if originalInventory["gold"] != float64(100) {
+			t.Fatalf("expected original nested gold to remain 100, got %#v", originalInventory["gold"])
+		}
+	})
+
+	t.Run("map inside nested slice", func(t *testing.T) {
+		originalItem := originalItems[0].(map[string]any)
+		if originalItem["name"] != "torch" {
+			t.Fatalf("expected original nested item name to remain torch, got %#v", originalItem["name"])
+		}
+	})
+
+	t.Run("scalar nested slice item", func(t *testing.T) {
+		if originalItems[1] != "rope" {
+			t.Fatalf("expected original scalar slice item to remain rope, got %#v", originalItems[1])
+		}
+	})
 }
